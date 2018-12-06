@@ -95,7 +95,7 @@ class LioTaskLoader(TaskLoader):
         }
         name = args['name']
 
-        logger.info(f"Loading parameters for task f{name}")
+        logger.info(f"Loading parameters for task {name}")
 
         if get_statement:
             args['statements'] = {}
@@ -199,7 +199,7 @@ class LioTaskLoader(TaskLoader):
                     return None
                 match = matcher.search(test_filename)
                 if not match:
-                    logger.critical(f"Unsupported file in test archive f{name}")
+                    logger.critical(f"Unsupported file in test archive {name}")
                     return None
 
                 is_input = match.group(1) == 'i'
@@ -308,7 +308,7 @@ class LioContestLoader(ContestLoader):
     def get_task_loader(self, taskname):
         task_yaml_path = os.path.join(taskname, 'task.yaml')
         if self.conf['tasks'][taskname] is not None:
-            task_yaml_path = self.conf['tasks'][taskname].get('config')
+            task_yaml_path = self.conf['tasks'][taskname].get('config', task_yaml_path)
         task_yaml_path = os.path.join(self.contest_dir, task_yaml_path)
         return LioTaskLoader(task_yaml_path, self.file_cacher)
 
