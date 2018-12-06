@@ -58,11 +58,12 @@ class ContestImporter:
 
     """
 
-    def __init__(self, path, yes, zero_time, import_tasks,
+    def __init__(self, path, yes, zero_time, ignore_tasks, import_tasks,
                  update_contest, update_tasks, no_statements,
                  delete_stale_participations, loader_class):
         self.yes = yes
         self.zero_time = zero_time
+        self.ignore_tasks = ignore_tasks
         self.import_tasks = import_tasks
         self.update_contest = update_contest
         self.update_tasks = update_tasks
@@ -102,11 +103,16 @@ class ContestImporter:
             try:
                 contest = self._contest_to_db(
                     session, contest, contest_has_changed)
-                # Detach all tasks before reattaching them
-                for t in list(contest.tasks):
-                    t.contest = None
-                for tasknum, taskname in enumerate(tasks):
-                    self._task_to_db(session, contest, tasknum, taskname)
+
+                if not self.ignore_tasks:
+                    # Detach all tasks before reattaching them
+                    for t in list(contest.tasks):
+                        t.contest = None
+                    for tasknum, taskname in enumerate(tasks):
+                        self._task_to_db(session, contest, tasknum, taskname)
+                else:
+                    logger.info("Ignoring any changes to contest tasks!")
+
                 # Delete stale participations if asked to, then import all
                 # others.
                 if self.delete_stale_participations:
@@ -363,6 +369,11 @@ If updating a contest already in the DB:
         help="use the specified loader (default: autodetect)"
     )
     parser.add_argument(
+        "-it", "--ignore-tasks",
+        action="store_true",
+        help="ignore any task change configuration"
+    )
+    parser.add_argument(
         "-i", "--import-tasks",
         action="store_true",
         help="import tasks if they do not exist"
@@ -406,6 +417,7 @@ If updating a contest already in the DB:
         path=args.import_directory,
         yes=args.yes,
         zero_time=args.zero_time,
+        ignore_tasks=args.ignore_tasks,
         import_tasks=args.import_tasks,
         update_contest=args.update_contest,
         update_tasks=args.update_tasks,

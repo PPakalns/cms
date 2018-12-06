@@ -889,6 +889,21 @@ msgstr "Paroles nesakrīt!"
 msgid "This username is already taken, please choose a different one."
 msgstr "Šis lietotājvārds jau ir aizņemts; lūdzu, izvēlieties citu."
 
+msgid "This user is already registered in the contest."
+msgstr "Šis lietotājs ir jau reģistrēts sacensībās."
+
+msgid "No such user."
+msgstr "Nav šāda lietotāja."
+
+msgid "The password is not correct."
+msgstr "Paroles nesakrīt!"
+
+msgid "Registration"
+msgstr "Reģistrēties"
+
+msgid "Please fill in the fields to register"
+msgstr "Lai reģistrētos, lūdzu, aizpildiet laukus"
+
 msgid "New user"
 msgstr "Jauns lietotājs"
 
