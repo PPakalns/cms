@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import io
 import os
 import re
 import logging
@@ -222,14 +223,15 @@ class LioTaskLoader(TaskLoader):
                     if 'input' not in testcase or 'output' not in testcase:
                         logger.critical(f"Input or output file not found for test {group}{test_in_group}")
                         return None
-                    # TODO: Convert windows newlines to unix newlines (dos2unix)
                     with zip.open(testcase['input'], 'r') as input_file:
-                        input_digest = self.file_cacher.put_file_from_fobj(
-                            input_file,
+                        content = io.TextIOWrapper(input_file, encoding='ascii', newline=None).read()
+                        input_digest = self.file_cacher.put_file_content(
+                            content.encode('ascii'),
                             f"Input {testcase['input']} for task {task.name}")
                     with zip.open(testcase['output'], 'r') as output_file:
-                        output_digest = self.file_cacher.put_file_from_fobj(
-                            output_file,
+                        content = io.TextIOWrapper(output_file, encoding='ascii', newline=None).read()
+                        output_digest = self.file_cacher.put_file_content(
+                            content.encode('ascii'),
                             f"Output {testcase['output']} for task {task.name}")
                     codename = f"{group:03}{test_in_group}"
                     args["testcases"][codename] = \
