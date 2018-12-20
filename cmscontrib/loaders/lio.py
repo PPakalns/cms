@@ -37,12 +37,14 @@ from datetime import timedelta
 logger = logging.getLogger(__name__)
 
 
-def set_if_present(src_dict, trg_dict, key, conv=None):
+def set_if_present(src_dict, trg_dict, key, conv=None, default=None):
     if key in src_dict:
         if conv:
             trg_dict[key] = conv(src_dict[key])
         else:
             trg_dict[key] = src_dict[key]
+    elif default is not None:
+        trg_dict[key] = default
 
 
 class LioTaskLoader(TaskLoader):
@@ -122,8 +124,8 @@ class LioTaskLoader(TaskLoader):
             logger.critical("Unknown score mode provided")
             raise ValueError
 
-        set_if_present(self.conf, args, 'max_submission_number')
-        set_if_present(self.conf, args, 'max_user_test_number')
+        set_if_present(self.conf, args, 'max_submission_number', default=40)
+        set_if_present(self.conf, args, 'max_user_test_number', default=40)
         set_if_present(self.conf, args, 'min_submission_interval', make_timedelta)
         set_if_present(self.conf, args, 'min_user_test_interval', make_timedelta)
 
@@ -276,6 +278,7 @@ class LioContestLoader(ContestLoader):
             'description': self.conf['description'],
         }
 
+        args['allowed_localizations'] = self.conf.get('allowed_localizations', ['lv'])
         args['languages'] = self.conf.get('languages',
             ["C11 / gcc", "C++11 / g++", "Pascal / fpc", "Java / JDK",
              "Python 3 / CPython", "Go"])
@@ -289,13 +292,16 @@ class LioContestLoader(ContestLoader):
 
         args['start'] = self.conf.get('start', datetime.datetime(1970, 1, 1))
         args['stop'] = self.conf.get('stop', datetime.datetime(1970, 1, 1))
+        args['timezone'] = self.conf.get('timezone', 'Europe/Riga')
 
         set_if_present(self.conf, args, 'per_user_time', make_timedelta)
 
         set_if_present(self.conf, args, 'max_submission_number')
         set_if_present(self.conf, args, 'max_user_test_number')
-        set_if_present(self.conf, args, 'min_submission_interval', make_timedelta)
-        set_if_present(self.conf, args, 'min_user_test_interval', make_timedelta)
+        set_if_present(self.conf, args, 'min_submission_interval', \
+                       conv=make_timedelta, default=make_timedelta(30))
+        set_if_present(self.conf, args, 'min_user_test_interval', \
+                       conv=make_timedelta, default=make_timedelta(30))
 
         tasks = list(self.conf['tasks'].keys())
 
