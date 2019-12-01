@@ -19,6 +19,7 @@
 import io
 import os
 import re
+import tempfile
 import logging
 import yaml
 import zipfile
@@ -37,19 +38,20 @@ from datetime import timedelta
 logger = logging.getLogger(__name__)
 
 
-def set_if_present(src_dict, trg_dict, key, conv=None, default=None):
+class LioLoaderException(Exception):
+    pass
+
+
+def set_if_present(src_dict, trg_dict, key, conv=lambda x: x, default=None):
     if key in src_dict:
-        if conv:
-            trg_dict[key] = conv(src_dict[key])
-        else:
-            trg_dict[key] = src_dict[key]
+        trg_dict[key] = conv(src_dict[key])
     elif default is not None:
         trg_dict[key] = default
 
 
 class LioTaskLoader(TaskLoader):
 
-    short_name = "Lio-task"
+    short_name = "lio-task"
     description = "Latvian Informatics Olympiad task loader"
 
     def __init__(self, path, file_cacher):
@@ -64,6 +66,7 @@ class LioTaskLoader(TaskLoader):
         return False
 
 
+    # TODO: Read subgroup points from the yaml file when possible
     def parse_point_file(self, point_path):
         """
         Parse point file with the following format for each line
@@ -81,13 +84,13 @@ class LioTaskLoader(TaskLoader):
             points = int(vars[2])
             for group in range(a, b+1):
                 if group in points_per_group:
-                    logger.critical("Duplicated groups in point file")
-                    raise ValueError
+                    raise LioLoaderException("Duplicated groups in point file")
                 points_per_group[group] = points
         for group in range(len(points_per_group)):
             if group not in points_per_group:
-                logger.critical("Missing group from point file")
-                raise ValueError
+                raise LioLoaderException("Missing group from point file")
+        if sum(points_per_group.values()) != 100:
+            raise LioLoaderException("Points for all groups doesn't sum up to 100")
         return points_per_group
 
 
@@ -113,7 +116,7 @@ class LioTaskLoader(TaskLoader):
             if args['statements']:
                 args['primary_statements'] = self.conf.get('primary_statements', ["lv"])
 
-        args['submission_format'] = [f"{name}.%l"]
+        set_if_present(self.conf, args, 'submission_format', default=[f"{name}.%l"])
 
         set_if_present(self.conf, args, 'score_precision')
 
@@ -121,8 +124,7 @@ class LioTaskLoader(TaskLoader):
         if score_mode in [SCORE_MODE_MAX, SCORE_MODE_MAX_SUBTASK, SCORE_MODE_MAX_TOKENED_LAST]:
             args['score_mode'] = score_mode
         else:
-            logger.critical("Unknown score mode provided")
-            raise ValueError
+            raise LioLoaderException("Unknown score mode provided")
 
         set_if_present(self.conf, args, 'max_submission_number', default=40)
         set_if_present(self.conf, args, 'max_user_test_number', default=40)
@@ -153,20 +155,20 @@ class LioTaskLoader(TaskLoader):
         if 'checker' in self.conf:
             logger.info("Checker found, compiling")
             checker_src = os.path.join(self.task_dir, self.conf['checker'])
-            checker_exe = os.path.join(os.path.dirname(checker_src), "checker")
             if config.installed:
                 testlib_path = "/usr/local/include/cms"
             else:
                 testlib_path = os.path.join(os.path.dirname(__file__), "polygon")
-            code = subprocess.call(["g++", "-x", "c++", "-O2", "-static",
-                                    "-DCMS", "-I", testlib_path,
-                                    "-o", checker_exe, checker_src])
-            if code != 0:
-                logger.critical("Could not compile checker")
-                return None
-            digest = self.file_cacher.put_file_from_path(
-                checker_exe, "Checker for task {name}"
-            )
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                checker_exe = os.path.join(tmp_dir, "checker")
+                code = subprocess.call(["g++", "-x", "c++", "-O2", "-static",
+                                        "-pipe", "-s", "-DCMS", "-I", testlib_path,
+                                        "-o", checker_exe, checker_src])
+                if code != 0:
+                    raise LioLoaderException("Could not compile checker")
+                digest = self.file_cacher.put_file_from_path(
+                    checker_exe, "Checker for task {name}"
+                )
             args["managers"]["checker"] = Manager("checker", digest)
             evaluation_param = "comparator"
         else:
@@ -174,9 +176,6 @@ class LioTaskLoader(TaskLoader):
 
         point_file = os.path.join(self.task_dir, self.conf.get('point_file', 'punkti.txt'))
         points_per_group = self.parse_point_file(point_file)
-        if sum(points_per_group.values()) != 100:
-            logger.critical("Points for all groups doesn't sum up to 100")
-            return None
 
         args["score_type"] = self.conf.get("score_type", "GroupMin")
         args["score_type_parameters"] = \
@@ -198,12 +197,10 @@ class LioTaskLoader(TaskLoader):
             test_files = {}
             for test_filename in zip.namelist():
                 if '/' in test_filename or '\\' in test_filename:
-                    logger.critical("Test zip archive contains a directory")
-                    return None
+                    raise LioLoaderException("Test zip archive contains a directory")
                 match = matcher.search(test_filename)
                 if not match:
-                    logger.critical(f"Unsupported file in test archive {name}")
-                    return None
+                    raise LioLoaderException(f"Unsupported file in test archive {name}")
 
                 is_input = match.group(1) == 'i'
                 group = int(match.group(2))
@@ -218,13 +215,13 @@ class LioTaskLoader(TaskLoader):
                 testcase['input' if is_input else 'output'] = test_filename
 
             # Extract them in correct order and update subtask list and testcases
+            max_group_digit_length = len(str(max(test_files.keys())))
             for group in sorted(test_files.keys()):
                 for test_in_group in sorted(test_files[group].keys()):
                     tests_per_group[group] += 1
                     testcase = test_files[group][test_in_group]
                     if 'input' not in testcase or 'output' not in testcase:
-                        logger.critical(f"Input or output file not found for test {group}{test_in_group}")
-                        return None
+                        raise LioLoaderException(f"Input or output file not found for test {group}{test_in_group}")
                     with zip.open(testcase['input'], 'r') as input_file:
                         content = io.TextIOWrapper(input_file, encoding='ascii', newline=None).read()
                         input_digest = self.file_cacher.put_file_content(
@@ -235,14 +232,13 @@ class LioTaskLoader(TaskLoader):
                         output_digest = self.file_cacher.put_file_content(
                             content.encode('ascii'),
                             f"Output {testcase['output']} for task {task.name}")
-                    codename = f"{group:03}{test_in_group}"
+                    codename = f"{group:0{max_group_digit_length}}{test_in_group}"
                     args["testcases"][codename] = \
                         Testcase(codename, group in public_groups, input_digest, output_digest)
 
         for i in range(len(tests_per_group)):
             if tests_per_group[i] == 0:
-                logger.critical(f"No testcases for group {i}")
-                return None
+                raise LioLoaderException(f"No testcases for group {i}")
 
         task.active_dataset = Dataset(**args)
 
@@ -259,7 +255,7 @@ class LioTaskLoader(TaskLoader):
 
 class LioContestLoader(ContestLoader):
 
-    short_name = "Lio-contest"
+    short_name = "lio-contest"
     description = "Latvian Informatics Olympiad contest loader"
 
     def __init__(self, path, file_cacher):
@@ -319,4 +315,3 @@ class LioContestLoader(ContestLoader):
             task_yaml_path = self.conf['tasks'][taskname].get('config', task_yaml_path)
         task_yaml_path = os.path.join(self.contest_dir, task_yaml_path)
         return LioTaskLoader(task_yaml_path, self.file_cacher)
-
