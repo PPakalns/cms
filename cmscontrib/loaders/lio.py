@@ -176,10 +176,11 @@ class LioTaskLoader(TaskLoader):
 
         point_file = os.path.join(self.task_dir, self.conf.get('point_file', 'punkti.txt'))
         points_per_group = self.parse_point_file(point_file)
+        max_group_digit_length = len(str(len(points_per_group) - 1))
 
         args["score_type"] = self.conf.get("score_type", "GroupMin")
         args["score_type_parameters"] = \
-            [[points_per_group[i], f"{i:03}"] for i in range(len(points_per_group))]
+            [[points_per_group[i], f"{i:0{max_group_digit_length}}"] for i in range(len(points_per_group))]
         args["task_type"] = "Batch"
         args["task_type_parameters"] = \
             [compilation_param,
@@ -215,7 +216,6 @@ class LioTaskLoader(TaskLoader):
                 testcase['input' if is_input else 'output'] = test_filename
 
             # Extract them in correct order and update subtask list and testcases
-            max_group_digit_length = len(str(max(test_files.keys())))
             for group in sorted(test_files.keys()):
                 for test_in_group in sorted(test_files[group].keys()):
                     tests_per_group[group] += 1
