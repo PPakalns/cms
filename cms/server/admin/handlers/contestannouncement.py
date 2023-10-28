@@ -51,6 +51,7 @@ class AddAnnouncementHandler(BaseHandler):
                                contest=self.contest, admin=self.current_user)
             self.sql_session.add(ann)
             self.try_commit()
+            self.service.event_service.announcement_new(announcement_id=announcement.id)
         else:
             self.service.add_notification(
                 make_datetime(), "Subject is mandatory.", "")
@@ -74,6 +75,8 @@ class AnnouncementHandler(BaseHandler):
 
         self.sql_session.delete(ann)
         self.try_commit()
+
+        self.service.event_service.announcement_deleted(announcement_id=ann.id, contest_id=self.contest.id)
 
         # Page to redirect to.
         self.write("announcements")

@@ -44,6 +44,7 @@
         "AdminWebServer":    [["localhost", 21100]],
         "ProxyService":      [["localhost", 28600]],
         "PrintingService":   [["localhost", 25123]]
+        "EventService":      [["localhost", 25130]]
         },
 
     "other_services":
@@ -186,6 +187,22 @@
     "max_jobs_per_user": 10,
     "pdf_printing_allowed": false,
 
+
+
+    "_section": "EventService",
+
+    "_help": "Service to process different kind of events raised by cms.",
+
+    "_help": "Register all handlers and their configuration",
+    "event_service_handlers": {
+        "Discord": [
+            {
+                "token": "secret_tokens",
+                "channel_id":  123123,
+                "storage": "/opt/cms/discord/storage",
+            }
+        ]
+    },
 
 
     "_help": "This is the end of this file."

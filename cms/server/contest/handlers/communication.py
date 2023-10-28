@@ -67,7 +67,7 @@ class QuestionHandler(ContestHandler):
     @multi_contest
     def post(self):
         try:
-            accept_question(self.sql_session, self.current_user, self.timestamp,
+            question = accept_question(self.sql_session, self.current_user, self.timestamp,
                             self.get_argument("question_subject", ""),
                             self.get_argument("question_text", ""))
             self.sql_session.commit()
@@ -79,5 +79,5 @@ class QuestionHandler(ContestHandler):
             self.notify_success(N_("Question received"),
                                 N_("Your question has been received, you "
                                    "will be notified when it is answered."))
-
+            self.service.event_service.question_new(question_id=question.id)
         self.redirect(self.contest_url("communication"))
