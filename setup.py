@@ -138,6 +138,7 @@ setup(
              "scripts/cmsProxyService",
              "scripts/cmsPrintingService",
              "scripts/cmsRankingWebServer",
+             "scripts/cmsEventService",
              "scripts/cmsInitDB",
              "scripts/cmsDropDB"],
     entry_points={
@@ -197,6 +198,9 @@ setup(
             "Rust=cms.grading.languages.rust:Rust",
             "Go=cms.grading.languages.go:Go",
         ],
+        "cms.service.event_handlers": [
+            "Discord=cms.service.event_handlers.discord:DiscordEventExecutor",
+        ]
     },
     keywords="ioi programming contest grader management system",
     license="Affero General Public License v3",

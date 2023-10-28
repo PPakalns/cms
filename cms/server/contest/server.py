@@ -131,6 +131,10 @@ class ContestWebServer(WebService):
             ServiceCoord("PrintingService", 0),
             must_be_present=printing_enabled)
 
+        self.event_service = self.connect_to(
+            ServiceCoord("EventService", 0),
+            must_be_present=False)
+
     def add_notification(self, username, timestamp, subject, text, level):
         """Store a new notification to send to a user at the first
         opportunity (i.e., at the first request fot db notifications).

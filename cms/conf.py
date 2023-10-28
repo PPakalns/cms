@@ -27,6 +27,7 @@ import logging
 import os
 import sys
 from collections import namedtuple
+from typing import Any, Dict, List
 
 from .log import set_detailed_logs
 
@@ -160,6 +161,9 @@ class Config:
         self.max_pages_per_job = 10
         self.max_jobs_per_user = 10
         self.pdf_printing_allowed = False
+
+        # EventService
+        self.event_service_handlers: Dict[str, List[Any]] = {}
 
         # Installed or from source?
         # We declare we are running from installed if the program was

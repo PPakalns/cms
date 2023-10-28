@@ -57,7 +57,7 @@ class UnacceptableQuestion(Exception):
         self.text_params = text_params
 
 
-def accept_question(sql_session, participation, timestamp, subject, text):
+def accept_question(sql_session, participation, timestamp, subject, text) -> Question:
     """Add a contestant-submitted question to the database.
 
     Validate and add a question received from a contestant (usually

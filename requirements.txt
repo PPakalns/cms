@@ -29,3 +29,8 @@ pyyaml>=5.3,<5.4  # http://pyyaml.org/wiki/PyYAML
 # Only for printing:
 pycups>=1.9,<1.10  # https://pypi.python.org/pypi/pycups
 PyPDF2>=1.26,<1.27  # https://github.com/mstamy2/PyPDF2/blob/master/CHANGELOG
+
+# Only for discord bot
+py-cord>=2.4,<2.5
+simplekv>=0.14,<0.15
+
