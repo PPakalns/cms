@@ -51,7 +51,7 @@ class AddAnnouncementHandler(BaseHandler):
                                contest=self.contest, admin=self.current_user)
             self.sql_session.add(ann)
             self.try_commit()
-            self.service.event_service.announcement_new(announcement_id=announcement.id)
+            self.service.event_service.announcement_new(announcement_id=ann.id)
         else:
             self.service.add_notification(
                 make_datetime(), "Subject is mandatory.", "")

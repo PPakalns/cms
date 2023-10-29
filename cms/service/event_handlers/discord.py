@@ -17,10 +17,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
+import queue as pqueue
 import logging
 import asyncio
+import multiprocessing as mp
+
 from typing import Dict, Optional
-import asyncio_gevent
 
 import discord
 from discord.channel import TextChannel
@@ -31,10 +33,17 @@ from cms.db.admin import Admin
 from cms.db.contest import Announcement, Contest
 from cms.db.session import SessionGen
 from cms.db.user import Question, User
+from cms.io.priorityqueue import QueueEntry
 
 from cms.service.EventService import EventExecutor, EventOperation
 
 logger = logging.getLogger(__name__)
+
+def truncate(s, length):
+    if len(s) <= length:
+        return s
+    else:
+        return s[:length] + "..."
 
 class KeyValueStore:
     def __init__(self, storage_path: str) -> None:
@@ -43,44 +52,50 @@ class KeyValueStore:
         self.store = FilesystemStore(storage_path)
 
     async def read_question_state(self, question_id: int) -> Optional[Dict]:
-        await self.read_state(f"question_{question_id}")
+        return await self.read_state(f"question_{question_id}")
 
     async def read_state(self, key: str) -> Optional[Dict]:
         async with self.lock:
-            value = self.store.get(key)
-            if value:
-                return json.loads(value)
-            return None
+            try:
+                value = self.store.get(key)
+                return json.loads(value.decode('utf-8'))
+            except KeyError:
+                return None
 
     async def store_question_state(self, question_id: int, data: Dict):
         await self.write_state(f"question_{question_id}", data)
 
     async def write_state(self, key: str, value: Dict):
         async with self.lock:
-            value = self.store.put(key, json.dumps(value))
+            self.store.put(key, json.dumps(value).encode())
 
 @discord.commands.command()
+@discord.guild_only()
 async def alive(ctx: discord.commands.context.ApplicationContext):
     if ctx.channel_id != ctx.bot.__getattribute__("channel_id"):
         return
-    ctx.send_response(content = "Bot is alive")
+    await ctx.send_response(content = "Bot is alive")
 
 class DiscordBot(discord.Bot):
     def __init__(self,
                  *,
-                 loop: asyncio.AbstractEventLoop | None = None,
                  channel_id: Optional[int] =None,
                  store: KeyValueStore,
                  **options
                  ):
-
+        super().__init__(
+            description="""Contest Management System notification bot""",
+            loop=asyncio.get_running_loop(),
+            **options
+        )
         self.channel_id = channel_id
         self.store = store
-        self.add_application_command(alive)
 
-        super().__init__(loop=loop, **options)
+        self.add_application_command(
+            alive
+        )
 
-    async def get_target_channel(self) -> TextChannel | None:
+    async def get_target_channel(self) -> Optional[TextChannel]:
         if self.channel_id:
             channel = self.get_channel(self.channel_id)
             if isinstance(channel, TextChannel):
@@ -99,20 +114,63 @@ class DiscordBot(discord.Bot):
         else:
             logger.info(f'Channel found')
 
-async def start_discord_client(client: DiscordBot, token: str) -> None:
-    await client.start(token)
+async def process_queue(queue: mp.Queue, client: DiscordBot):
+    logger.info("Processing queue")
+    while True:
+        try:
+            item = queue.get_nowait()
+        except pqueue.Empty:
+            await asyncio.sleep(5)
+            continue
 
+        call_type, args, kwargs = item
+        logger.info(f"Processing {call_type} item in discord thread!")
+
+        if call_type == "announcement_update":
+            await announcement_update(client, *args, *kwargs)
+        elif call_type == "question_update":
+            await question_update(client, *args, *kwargs)
+        else:
+            logger.warn(f"Unknown call type: {call_type}")
+
+async def start_client(client: DiscordBot, token: str):
+    logger.info("Starting discord client")
+    await client.start(token)
+    logger.info("Stopping discord client")
+
+async def discord_process_async(queue: mp.Queue, token: str, channel_id: int, storage_path: str):
+    logger.info("Starting discord thread")
+    intents = discord.Intents.default()
+    intents.message_content = True
+    intents.reactions = True
+    store = KeyValueStore(storage_path)
+    client = DiscordBot(intents=intents, channel_id=channel_id, store=store)
+
+    await asyncio.gather(start_client(client, token), process_queue(queue, client))
+
+def discord_process(queue: mp.Queue, token: str, channel_id: int, storage_path: str):
+    asyncio.run(discord_process_async(queue, token, channel_id, storage_path))
+
+class ThreadHandle:
+    def __init__(self, token: str, channel_id: int, storage_path: str):
+        ctx = mp.get_context('spawn')
+        self.queue = ctx.Queue()
+        self.process = ctx.Process(target=discord_process, kwargs={
+            "queue": self.queue,
+            "token":token,
+            "channel_id":channel_id,
+            "storage_path":storage_path
+        })
+        self.process.start()
+
+    def send(self, call_type: str, *args, **kwargs):
+        logger.info(f"Sending {call_type} discord action")
+        self.queue.put((call_type, args, kwargs))
 
 class DiscordEventExecutor(EventExecutor):
 
     def __init__(self, params):
         super().__init__()
-
-        asyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())
-
-        intents = discord.Intents.default()
-        intents.message_content = True
-        intents.reactions = True
 
         token = params.get("token", None)
         if token is None:
@@ -121,20 +179,18 @@ class DiscordEventExecutor(EventExecutor):
         storage_path = params.get("storage_path", None)
         if storage_path is None:
             raise Exception("Storage path not provided")
-        store = KeyValueStore(storage_path)
 
-        self.client = DiscordBot(intents=intents, command_prefix="/", channel_id=channel_id, store=store)
-        self.discord_bot_greenlet = asyncio_gevent.future_to_greenlet(start_discord_client(self.client, token))
-        self.discord_bot_greenlet.start()
+        self.handle = ThreadHandle(token, channel_id, storage_path)
+
 
     @staticmethod
     def codename():
         return "Discord"
 
-    def execute(self, item: EventOperation):
+    def execute(self, entry: QueueEntry):
         """Process events
         """
-        future = None
+        item: EventOperation = entry.item
 
         with SessionGen() as session:
             if item.type == EventOperation.REFRESH:
@@ -145,7 +201,7 @@ class DiscordEventExecutor(EventExecutor):
                 if not question:
                     logger.warn(f"Question {question_id} doesn't exist anymore")
                     return
-                future = question_update(self.client, question_id, get_question_desc(question))
+                self.handle.send("question_update", question_id, get_question_desc(question))
 
             elif item.type == EventOperation.ANNOUNCEMENT_NEW:
                 announcement_id = item.data["announcement_id"]
@@ -153,19 +209,15 @@ class DiscordEventExecutor(EventExecutor):
                 if not announcement:
                     logger.warn(f"Announcement {announcement_id} doesn't exist anymore")
                     return
-                future = announcement_update(self.client, announcement_id, get_announcement_desc(announcement))
+                self.handle.send("announcement_update", announcement_id, get_announcement_desc(announcement))
+
 
             elif item.type == EventOperation.ANNOUNCEMENT_DELETED:
                 announcement_id = item.data["announcement_id"]
-                future = announcement_update(self.client, announcement_id, None)
+                self.handle.send("announcement_update", announcement_id, None)
 
             else:
                 logging.warning("Unhandled event in Discord event handler")
-
-            if future:
-                greenlet = asyncio_gevent.future_to_greenlet(future)
-                greenlet.start()
-                greenlet.join()
 
 def get_question_desc(question: Question):
     user: User = question.participation.user
@@ -205,8 +257,8 @@ def get_announcement_desc(announcement: Announcement):
     }
 
 def esc(text: str) -> str:
-    text = discord.utils.utils.escape_markdown(text)
-    text = discord.utils.utils.escape_mentions(text)
+    text = discord.utils.escape_markdown(text)
+    text = discord.utils.escape_mentions(text)
     return text
 
 def has_replied(question: Dict) -> bool:
@@ -233,19 +285,18 @@ def esc_question_status_text(question: Dict, full=False) -> str:
 
 def esc_reply_text(question: Dict) -> str:
     reply = (
-        f"###### Reply: {esc(question['reply_subject'])}\n"
+        f"### Reply: {esc(question['reply_subject'])}\n"
         f"{esc(question['reply_text'])}"
     )
     return reply
 
 def prepare_message_content(question: Dict):
     content = (
-        f"##### Jautājums (sacensības: {esc(question['contest'])}, dalībnieks: {esc(question['user'])})\n"
-        f"#### {esc(question['subject'])}\n"
+        f"### Question (contest: {esc(question['contest'])}, user: {esc(question['user'])})\n"
+        f"## {truncate(esc(question['subject']), 200)}\n"
+        f"{truncate(esc(question['text']), 1000)}"
         "\n"
-        f"{esc(discord.utils.utils.escape_markdown(question['text']))}"
-        "\n"
-        f"State: {esc_question_status_text(question)}"
+        f"### State: {esc_question_status_text(question)}"
     )
     if has_replied(question):
         content += (
@@ -255,7 +306,7 @@ def prepare_message_content(question: Dict):
     return content
 
 def thread_name(question: Dict):
-    return f"{esc(question['id'])}-{esc(question['user'])}-{esc(question['contest'])}"
+    return f"{question['id']}-{esc(question['user'])}-{esc(question['contest'])}"
 
 async def question_update(client: DiscordBot, question_id: int, question: Optional[Dict]):
     if not question:
@@ -263,12 +314,12 @@ async def question_update(client: DiscordBot, question_id: int, question: Option
 
     state = await client.store.read_question_state(question_id)
 
-    if state is None:
-        channel = await client.get_target_channel()
-        if not channel:
-            logger.warn("Channel not found")
-            return
+    channel = await client.get_target_channel()
+    if not channel:
+        logger.warn("Channel not found")
+        return
 
+    if state is None:
         state = {
             "message_id": None,
             "question": question
@@ -278,12 +329,14 @@ async def question_update(client: DiscordBot, question_id: int, question: Option
         new_message: Message = await channel.send(
             content = prepare_message_content(question)
         )
+        logger.info("Question message created")
 
         state["message_id"] = new_message.id
         await client.store.store_question_state(question_id, state)
 
         thread = await new_message.create_thread(name=thread_name(question))
-        await thread.send(content="Discuss the question here!")
+        await thread.send(content="Discuss here!")
+        logger.info("Thread for question created")
 
         return
 
@@ -299,19 +352,22 @@ async def question_update(client: DiscordBot, question_id: int, question: Option
         logger.warn("Chat message not found, ignoring")
         return
 
-    if message.thread is None:
-        await message.create_thread(name=thread_name(question))
+    thread = client.get_channel(message.id)
+    if thread is None:
+        thread = await message.create_thread(name=thread_name(question))
 
-    if message.thread is None:
+    if thread is None:
         logger.error("Incorrect state")
         return
 
     await message.edit(content=prepare_message_content(question))
+    logger.info("Question message edited")
 
     state["question"] = question
     await client.store.store_question_state(question_id, state)
 
-    await message.thread.send(content=esc_question_status_text(question, full=True))
+    await thread.send(content=esc_question_status_text(question, full=True))
+    logger.info("Added question state message to thread")
 
 
 async def announcement_update(client: DiscordBot, announcement_id: int, announcement: Optional[Dict]):
@@ -320,10 +376,10 @@ async def announcement_update(client: DiscordBot, announcement_id: int, announce
         return
     if announcement:
         await channel.send(content=(
-                f"Announcement (contest: {esc(announcement["contest"])}, admin: {esc(announcement["admin"])})\n"
-                f"*{esc(announcement["subject"])}*\n"
-                f"{esc(announcement["text"])}\n"
+                f"### Announcement (contest: {esc(announcement['contest'])}, admin: {esc(announcement['admin'])})\n"
+                f"### {esc(announcement['subject'])}\n"
+                f"{esc(announcement['text'])}\n"
             )
         )
-
+        logger.info("Announcement message sent to channel")
 

@@ -199,7 +199,7 @@
             {
                 "token": "secret_tokens",
                 "channel_id":  123123,
-                "storage": "/opt/cms/discord/storage",
+                "storage_path": "/opt/cms/discord/storage"
             }
         ]
     },

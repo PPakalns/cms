@@ -75,10 +75,11 @@ class EventService(TriggeredService):
                 self.add_executor(handler)
 
         if self._executors:
-            self.add_timeout(self.sweep_executors,
-                             None,
-                             EventService.EXECUTOR_REFRESH.total_seconds(),
-                             immediately=True)
+            pass
+            # self.add_timeout(self.sweep_executors,
+            #                  None,
+            #                  EventService.EXECUTOR_REFRESH.total_seconds(),
+            #                  immediately=True)
         else:
             logger.warning("No executor added for EventService")
 

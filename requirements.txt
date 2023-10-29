@@ -32,6 +32,5 @@ PyPDF2>=1.26,<1.27  # https://github.com/mstamy2/PyPDF2/blob/master/CHANGELOG
 
 # Only for discord bot
 py-cord>=2.4,<2.5
-asyncio-gevent>=0.2,<0.3
 simplekv>=0.14,<0.15
 
