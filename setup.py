@@ -138,6 +138,7 @@ setup(
              "scripts/cmsProxyService",
              "scripts/cmsPrintingService",
              "scripts/cmsRankingWebServer",
+             "scripts/cmsEventService",
              "scripts/cmsInitDB",
              "scripts/cmsDropDB"],
     entry_points={
