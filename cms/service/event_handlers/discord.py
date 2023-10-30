@@ -16,24 +16,30 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+import sys
 import json
-import queue as pqueue
+import time
 import logging
 import asyncio
+import discord
+import queue as pqueue
 import multiprocessing as mp
 
 from typing import Dict, Optional
 
-import discord
 from discord.channel import TextChannel
 from discord.message import Message
 from simplekv.fs import FilesystemStore
 
+from cms.conf import config
 from cms.db.admin import Admin
 from cms.db.contest import Announcement, Contest
 from cms.db.session import SessionGen
 from cms.db.user import Question, User
 from cms.io.priorityqueue import QueueEntry
+from cms.util import mkdir
+from cms.log import ServiceFilter, DetailedFormatter
 
 from cms.service.EventService import EventExecutor, EventOperation
 
@@ -126,12 +132,15 @@ async def process_queue(queue: mp.Queue, client: DiscordBot):
         call_type, args, kwargs = item
         logger.info(f"Processing {call_type} item in discord thread!")
 
-        if call_type == "announcement_update":
-            await announcement_update(client, *args, *kwargs)
-        elif call_type == "question_update":
-            await question_update(client, *args, *kwargs)
-        else:
-            logger.warn(f"Unknown call type: {call_type}")
+        try:
+            if call_type == "announcement_update":
+                await announcement_update(client, *args, *kwargs)
+            elif call_type == "question_update":
+                await question_update(client, *args, *kwargs)
+            else:
+                logger.warn(f"Unknown call type: {call_type}")
+        except:
+            logger.error(f"Error while processing: {call_type}")
 
 async def start_client(client: DiscordBot, token: str):
     logger.info("Starting discord client")
@@ -153,28 +162,60 @@ def discord_process(
         token: str,
         channel_id: int,
         storage_path: str,
-        logging_queue: mp.Queue
     ):
-    handler = logging.handlers.QueueHandler(logging_queue)
-    logger.addHandler(handler)
+    logger.info("Setting up discord process loggers")
+
+    name = "Discord"
+    shard = 0
+    root_logger = logging.getLogger()
+
+    log_dir = os.path.join(config.log_dir, "%s-%d" % (name, shard))
+    mkdir(config.log_dir)
+    mkdir(log_dir)
+
+    log_filename = time.strftime("%Y-%m-%d-%H-%M-%S.log")
+
+    # Install a file handler.
+    file_handler = logging.FileHandler(os.path.join(log_dir, log_filename),
+                                       mode='w', encoding='utf-8')
+    if config.file_log_debug:
+        file_log_level = logging.DEBUG
+    else:
+        file_log_level = logging.INFO
+
+    file_handler.setLevel(file_log_level)
+    file_handler.setFormatter(DetailedFormatter(False))
+    root_logger.addHandler(file_handler)
+
+    # Provide a symlink to the latest log file.
+    try:
+        os.remove(os.path.join(log_dir, "last.log"))
+    except OSError:
+        pass
+    os.symlink(log_filename, os.path.join(log_dir, "last.log"))
+
+    _filter = ServiceFilter(name, shard)
+    for handler in root_logger.handlers:
+        handler.addFilter(_filter)
+
+    logger.info(f"Handlers: {logging.getLogger().handlers}")
     logger.info("Set up discord process logging")
     asyncio.run(discord_process_async(queue, token, channel_id, storage_path))
+    logger.info("Discrod process exited")
 
 class ThreadHandle:
     def __init__(self, token: str, channel_id: int, storage_path: str):
         ctx = mp.get_context('spawn')
-        self.logging_queue = mp.Queue()
         self.queue = ctx.Queue()
         self.process = ctx.Process(target=discord_process, kwargs={
             "queue": self.queue,
             "token":token,
             "channel_id":channel_id,
             "storage_path":storage_path,
-            "logging_queue": self.logging_queue,
         })
-        self.listener = logging.handlers.QueueListener(self.queue)
+        logger.info("Starting discord process")
         self.process.start()
-        self.listener.start()
+        logger.info("Thread created")
 
     def send(self, call_type: str, *args, **kwargs):
         logger.info(f"Sending {call_type} discord action")
@@ -362,10 +403,14 @@ async def question_update(client: DiscordBot, question_id: int, question: Option
     if message_id:
         message = client.get_message(message_id)
     if message is None:
+        message = await channel.fetch_message(message_id)
+    if message is None:
         logger.warn("Chat message not found, ignoring")
         return
 
     thread = client.get_channel(message.id)
+    if thread is None:
+        thread = await client.fetch_channel(message.id)
     if thread is None:
         thread = await message.create_thread(name=thread_name(question))
 
