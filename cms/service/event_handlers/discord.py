@@ -325,17 +325,17 @@ def esc_question_status_text(question: Dict, full=False) -> str:
 
     if has_replied(question):
         if full:
-            return f"Replied{by_admin}\n\n{esc_reply_text(question)}"
+            return f":white_check_mark: Replied{by_admin}\n\n{esc_reply_text(question)}"
         else:
-            return f"Replied{by_admin}"
+            return f":white_check_mark: Replied{by_admin}"
 
     if question["ignored"]:
-        return f"Ignored{by_admin}"
+        return f":green_circle: Ignored{by_admin}"
 
     if by_admin:
-        return f"Claimed{by_admin}"
+        return f":yellow_circle: Claimed{by_admin}"
 
-    return "Waiting for reply"
+    return ":red_circle: Waiting for reply"
 
 def esc_reply_text(question: Dict) -> str:
     reply = (
