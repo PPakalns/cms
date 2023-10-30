@@ -148,20 +148,33 @@ async def discord_process_async(queue: mp.Queue, token: str, channel_id: int, st
 
     await asyncio.gather(start_client(client, token), process_queue(queue, client))
 
-def discord_process(queue: mp.Queue, token: str, channel_id: int, storage_path: str):
+def discord_process(
+        queue: mp.Queue,
+        token: str,
+        channel_id: int,
+        storage_path: str,
+        logging_queue: mp.Queue
+    ):
+    handler = logging.handlers.QueueHandler(logging_queue)
+    logger.addHandler(handler)
+    logger.info("Set up discord process logging")
     asyncio.run(discord_process_async(queue, token, channel_id, storage_path))
 
 class ThreadHandle:
     def __init__(self, token: str, channel_id: int, storage_path: str):
         ctx = mp.get_context('spawn')
+        self.logging_queue = mp.Queue()
         self.queue = ctx.Queue()
         self.process = ctx.Process(target=discord_process, kwargs={
             "queue": self.queue,
             "token":token,
             "channel_id":channel_id,
-            "storage_path":storage_path
+            "storage_path":storage_path,
+            "logging_queue": self.logging_queue,
         })
+        self.listener = logging.handlers.QueueListener(self.queue)
         self.process.start()
+        self.listener.start()
 
     def send(self, call_type: str, *args, **kwargs):
         logger.info(f"Sending {call_type} discord action")
