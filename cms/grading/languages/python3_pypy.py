@@ -60,10 +60,10 @@ class Python3PyPy(CompiledLanguage):
         files_to_package = []
 
         # The file with the entry point must be in first position.
-        if source_filename := source_filenames.get(0):
+        if source_filename := source_filenames[0]:
             commands.append(["/bin/mv", source_filename, self.MAIN_FILENAME])
 
-        commands.append(["/usr/bin/python3", "-m", "compileall", "-b", "."])
+        commands.append(["/usr/bin/pypy3", "-m", "compileall", "-b", "."])
         for idx, source_filename in enumerate(source_filenames):
             if idx == 0:
                 source_filename = self.MAIN_FILENAME
