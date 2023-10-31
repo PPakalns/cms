@@ -21,7 +21,8 @@ import os
 import re
 import tempfile
 import logging
-import yaml
+import typst
+import pathlib
 import zipfile
 import datetime
 import subprocess
@@ -34,6 +35,13 @@ from cmscommon.constants import \
     SCORE_MODE_MAX, SCORE_MODE_MAX_SUBTASK, SCORE_MODE_MAX_TOKENED_LAST
 from .italy_yaml import load_yaml_from_path, make_timedelta
 from datetime import timedelta
+
+# Workaround to make new features available in python3.8 for typst library
+import importlib.resources as importlib_res
+import importlib_resources
+setattr(importlib_res, "files", importlib_resources.files)
+setattr(importlib_res, "as_file", importlib_resources.as_file)
+
 
 logger = logging.getLogger(__name__)
 
@@ -156,11 +164,23 @@ class LioTaskLoader(TaskLoader):
             args['statements'] = {}
             for statement in self.conf.get('statements', []):
                 path, lang = statement
-                logger.info(f"Loading statement: {statement}")
-                digest = self.file_cacher.put_file_from_path(
-                    os.path.join(self.task_dir, path),
-                    f"Statement for task {name} (lang: {lang})",
-                )
+
+                if pathlib.Path(path).suffix.lower() == ".typ":
+                    logger.info("Compiling typst document")
+                    statement_pdf = typst.compile(
+                        os.path.join(self.task_dir, path),
+                        root=os.path.join(self.task_dir, "../")
+                    )
+                    digest = self.file_cacher.put_file_content(
+                        statement_pdf,
+                        f"Statement for task {name} (lang: {lang})",
+                    )
+                else:
+                    logger.info(f"Loading statement: {statement}")
+                    digest = self.file_cacher.put_file_from_path(
+                        os.path.join(self.task_dir, path),
+                        f"Statement for task {name} (lang: {lang})",
+                    )
                 args['statements'][lang] = Statement(lang, digest)
             if args['statements']:
                 args['primary_statements'] = self.conf.get('primary_statements', ["lv"])
