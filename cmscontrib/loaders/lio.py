@@ -48,6 +48,13 @@ def set_if_present(src_dict, trg_dict, key, conv=lambda x: x, default=None):
     elif default is not None:
         trg_dict[key] = default
 
+def to_datetime(dt):
+    if isinstance(dt, datetime.datetime):
+        return dt
+    if isinstance(dt, str):
+        return datetime.datetime.fromisoformat(dt)
+    raise ValueError("Not a correct datetime")
+
 
 class LioTaskLoader(TaskLoader):
 
@@ -93,6 +100,48 @@ class LioTaskLoader(TaskLoader):
             raise LioLoaderException("Points for all groups doesn't sum up to 100")
         return points_per_group
 
+    def parse_points_and_public_groups(self, points):
+
+        points_per_group = dict()
+        public_groups = set()
+        for row in points:
+            groups = row["groups"]
+            if isinstance(groups, int):
+                groups = [groups]
+            elif isinstance(groups, list):
+                from_gr, to_gr = groups
+                if to_gr < from_gr:
+                    raise ValueError("Bad group interval")
+                groups = list(range(from_gr, to_gr + 1))
+            else:
+                raise ValueError(f"Unparsabled groups {groups}")
+
+            if not isinstance(row["points"], int):
+                raise ValueError("Provided points are not points")
+
+            for group in groups:
+                if group in points_per_group:
+                    raise LioLoaderException("Duplicated groups in point file")
+                points_per_group[group] = row["points"]
+
+            public = row.get("public", False)
+            if isinstance(public, bool):
+                if public:
+                    public_groups.update(groups)
+            elif isinstance(public, list):
+                for group in public:
+                    if group not in groups:
+                        raise ValueError(f"Provided group number {group} not in this test group block {groups}")
+                    public_groups.add(group)
+
+        for group in range(len(points_per_group)):
+            if group not in points_per_group:
+                raise LioLoaderException("Missing group from point file")
+        if sum(points_per_group.values()) != 100:
+            raise LioLoaderException("Points for all groups doesn't sum up to 100")
+
+        return points_per_group, public_groups
+
 
     def get_task(self, get_statement):
         args = {
@@ -126,8 +175,8 @@ class LioTaskLoader(TaskLoader):
         else:
             raise LioLoaderException("Unknown score mode provided")
 
-        set_if_present(self.conf, args, 'max_submission_number', default=40)
-        set_if_present(self.conf, args, 'max_user_test_number', default=40)
+        set_if_present(self.conf, args, 'max_submission_number', default=30)
+        set_if_present(self.conf, args, 'max_user_test_number', default=100)
         set_if_present(self.conf, args, 'min_submission_interval', make_timedelta)
         set_if_present(self.conf, args, 'min_user_test_interval', make_timedelta)
 
@@ -150,15 +199,31 @@ class LioTaskLoader(TaskLoader):
         output_filename = self.conf.get("output_filename", "")
 
         # No grader support
-        compilation_param = "alone"
+        manager = None
+        is_communication = False
+        set_if_present(self.conf, args, 'task_type', default="Batch")
 
-        if 'checker' in self.conf:
-            logger.info("Checker found, compiling")
-            checker_src = os.path.join(self.task_dir, self.conf['checker'])
-            if config.installed:
+        if args["task_type"] == "Batch":
+            manager = self.conf.get("checker")
+        elif args["task_type"] == "Communication":
+            is_communication = True
+            manager = self.conf.get("interactor")
+            if manager is None:
+                raise ValueError("For Communication task interactor must be provided")
+        else:
+            raise ValueError("Unknown task type")
+
+        if manager:
+            logger.info("Compiling manager (checker or interactor)")
+            checker_src = os.path.join(self.task_dir, manager)
+
+            if is_communication:
+                testlib_path = os.path.join(os.path.dirname(__file__), "lio", "interactive")
+            elif config.installed:
                 testlib_path = "/usr/local/include/cms"
             else:
                 testlib_path = os.path.join(os.path.dirname(__file__), "polygon")
+
             with tempfile.TemporaryDirectory() as tmp_dir:
                 checker_exe = os.path.join(tmp_dir, "checker")
                 code = subprocess.call(["g++", "-x", "c++", "-O2", "-static",
@@ -169,28 +234,37 @@ class LioTaskLoader(TaskLoader):
                 digest = self.file_cacher.put_file_from_path(
                     checker_exe, "Checker for task {name}"
                 )
-            args["managers"]["checker"] = Manager("checker", digest)
+            args["managers"]["checker"] = Manager("manager", digest)
             evaluation_param = "comparator"
         else:
             evaluation_param = "diff"
 
-        point_file = os.path.join(self.task_dir, self.conf.get('point_file', 'punkti.txt'))
-        points_per_group = self.parse_point_file(point_file)
-        max_group_digit_length = len(str(len(points_per_group) - 1))
+        if "tests_groups" in self.conf:
+            points_per_group, public_groups = self.parse_points_and_public_groups(self.conf["tests_groups"])
+        else:
+            point_file = os.path.join(self.task_dir, self.conf.get('point_file', 'punkti.txt'))
+            points_per_group = self.parse_point_file(point_file)
+            public_groups = self.conf.get('public_groups', [0, 1])
 
         args["score_type"] = self.conf.get("score_type", "GroupMin")
+        max_group_digit_length = len(str(len(points_per_group) - 1))
         args["score_type_parameters"] = \
             [[points_per_group[i], f"{i:0{max_group_digit_length}}"] for i in range(len(points_per_group))]
-        args["task_type"] = "Batch"
-        args["task_type_parameters"] = \
-            [compilation_param,
-             [input_filename, output_filename],
-             evaluation_param]
-        public_groups = self.conf.get('public_groups', [0, 1])
+
+        if is_communication:
+            args["task_type_parameters"] = \
+                [0,
+                 "alone",
+                 "std_io"]
+        else:
+            args["task_type_parameters"] = \
+                ["alone",
+                 [input_filename, output_filename],
+                 evaluation_param]
 
         args["testcases"] = {}
         tests_per_group = [0] * len(points_per_group)
-        test_zip = os.path.join(self.task_dir, self.conf.get('test_archive', 'testi.zip'))
+        test_zip = os.path.join(self.task_dir, self.conf.get('tests_archive', 'testi.zip'))
         with zipfile.ZipFile(test_zip) as zip:
 
             # Collect and organize test files from zip archive
@@ -286,8 +360,8 @@ class LioContestLoader(ContestLoader):
         # If enabled, other token mode settings must be provided through AWS
         args['token_mode'] = self.conf.get('token_mode', TOKEN_MODE_DISABLED)
 
-        args['start'] = self.conf.get('start', datetime.datetime(1970, 1, 1))
-        args['stop'] = self.conf.get('stop', datetime.datetime(1970, 1, 1))
+        args['start'] = to_datetime(self.conf.get('start', datetime.datetime(1970, 1, 1)))
+        args['stop'] = to_datetime(self.conf.get('stop', datetime.datetime(1970, 1, 1)))
         args['timezone'] = self.conf.get('timezone', 'Europe/Riga')
 
         set_if_present(self.conf, args, 'per_user_time', make_timedelta)
