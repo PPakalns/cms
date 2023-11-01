@@ -26,6 +26,7 @@ import pathlib
 import zipfile
 import datetime
 import subprocess
+import shutil
 
 from cms import config
 from cms.db import Contest, Dataset, Task, Statement, Testcase, Manager
@@ -220,14 +221,17 @@ class LioTaskLoader(TaskLoader):
 
         # No grader support
         manager = None
+        manager_name = None
         is_communication = False
         set_if_present(self.conf, args, 'task_type', default="Batch")
 
         if args["task_type"] == "Batch":
             manager = self.conf.get("checker")
+            manager_name = "checker"
         elif args["task_type"] == "Communication":
             is_communication = True
             manager = self.conf.get("interactor")
+            manager_name = "manager"
             if manager is None:
                 raise ValueError("For Communication task interactor must be provided")
         else:
@@ -235,7 +239,7 @@ class LioTaskLoader(TaskLoader):
 
         if manager:
             logger.info("Compiling manager (checker or interactor)")
-            checker_src = os.path.join(self.task_dir, manager)
+            manager_src = os.path.join(self.task_dir, manager)
 
             if is_communication:
                 testlib_path = os.path.join(os.path.dirname(__file__), "lio", "interactive")
@@ -245,16 +249,21 @@ class LioTaskLoader(TaskLoader):
                 testlib_path = os.path.join(os.path.dirname(__file__), "polygon")
 
             with tempfile.TemporaryDirectory() as tmp_dir:
+                # Moving to tmp directory to avoid problems with local testlib header file
+                tmp_src_file = os.path.join(tmp_dir, os.path.split(manager_src)[1])
+                shutil.copyfile(manager_src, tmp_src_file)
                 checker_exe = os.path.join(tmp_dir, "checker")
                 code = subprocess.call(["g++", "-x", "c++", "-O2", "-static",
-                                        "-pipe", "-s", "-DCMS", "-I", testlib_path,
-                                        "-o", checker_exe, checker_src])
+                                        "-pipe", "-s", "-DCMS", 
+                                        # "-include", os.path.join(testlib_path, "testlib.h"),
+                                        "-I", testlib_path,
+                                        "-o", checker_exe, tmp_src_file])
                 if code != 0:
                     raise LioLoaderException("Could not compile checker")
                 digest = self.file_cacher.put_file_from_path(
                     checker_exe, "Checker for task {name}"
                 )
-            args["managers"]["checker"] = Manager("manager", digest)
+            args["managers"]["checker"] = Manager(manager_name, digest)
             evaluation_param = "comparator"
         else:
             evaluation_param = "diff"
@@ -273,7 +282,7 @@ class LioTaskLoader(TaskLoader):
 
         if is_communication:
             args["task_type_parameters"] = \
-                [0,
+                [1,
                  "alone",
                  "std_io"]
         else:
