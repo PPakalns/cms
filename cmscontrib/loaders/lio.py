@@ -399,7 +399,7 @@ class LioContestLoader(ContestLoader):
         args['timezone'] = self.conf.get('timezone', 'Europe/Riga')
 
         set_if_present(self.conf, args, 'per_user_time', make_timedelta)
-
+        set_if_present(self.conf, args, 'allow_registration', default=False)
         set_if_present(self.conf, args, 'max_submission_number')
         set_if_present(self.conf, args, 'max_user_test_number')
         set_if_present(self.conf, args, 'min_submission_interval', \
