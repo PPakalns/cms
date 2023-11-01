@@ -19,6 +19,7 @@
 import io
 import os
 import re
+import pytz
 import tempfile
 import logging
 import typst
@@ -59,10 +60,14 @@ def set_if_present(src_dict, trg_dict, key, conv=lambda x: x, default=None):
 
 def to_datetime(dt):
     if isinstance(dt, datetime.datetime):
-        return dt
-    if isinstance(dt, str):
-        return datetime.datetime.fromisoformat(dt)
-    raise ValueError("Not a correct datetime")
+        pass
+    elif isinstance(dt, str):
+        dt = datetime.datetime.fromisoformat(dt)
+    else:
+        raise ValueError("Not a correct datetime")
+
+    dt = dt.astimezone(datetime.timezone.utc)
+    return dt.replace(tzinfo=None)
 
 
 class LioTaskLoader(TaskLoader):
@@ -254,7 +259,7 @@ class LioTaskLoader(TaskLoader):
                 shutil.copyfile(manager_src, tmp_src_file)
                 checker_exe = os.path.join(tmp_dir, "checker")
                 code = subprocess.call(["g++", "-x", "c++", "-O2", "-static",
-                                        "-pipe", "-s", "-DCMS", 
+                                        "-pipe", "-s", "-DCMS",
                                         # "-include", os.path.join(testlib_path, "testlib.h"),
                                         "-I", testlib_path,
                                         "-o", checker_exe, tmp_src_file])
