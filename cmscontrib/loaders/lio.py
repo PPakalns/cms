@@ -30,7 +30,7 @@ import subprocess
 import shutil
 
 from cms import config
-from cms.db import Contest, Dataset, Task, Statement, Testcase, Manager
+from cms.db import Contest, Dataset, Task, Statement, Testcase, Manager, Attachment
 from .base_loader import ContestLoader, TaskLoader
 from cms import TOKEN_MODE_DISABLED, TOKEN_MODE_FINITE, TOKEN_MODE_INFINITE
 from cmscommon.constants import \
@@ -158,16 +158,16 @@ class LioTaskLoader(TaskLoader):
 
 
     def get_task(self, get_statement):
-        args = {
+        task_args = {
             'name': self.conf['name'],
             'title': self.conf['title'],
         }
-        name = args['name']
+        name = task_args['name']
 
         logger.info(f"Loading parameters for task {name}")
 
         if get_statement:
-            args['statements'] = {}
+            task_args['statements'] = {}
             for statement in self.conf.get('statements', []):
                 path, lang = statement
 
@@ -187,29 +187,27 @@ class LioTaskLoader(TaskLoader):
                         os.path.join(self.task_dir, path),
                         f"Statement for task {name} (lang: {lang})",
                     )
-                args['statements'][lang] = Statement(lang, digest)
-            if args['statements']:
-                args['primary_statements'] = self.conf.get('primary_statements', ["lv"])
+                task_args['statements'][lang] = Statement(lang, digest)
+            if task_args['statements']:
+                task_args['primary_statements'] = self.conf.get('primary_statements', ["lv"])
 
-        set_if_present(self.conf, args, 'submission_format', default=[f"{name}.%l"])
+        set_if_present(self.conf, task_args, 'submission_format', default=[f"{name}.%l"])
 
-        set_if_present(self.conf, args, 'score_precision')
+        set_if_present(self.conf, task_args, 'score_precision')
 
         score_mode = self.conf.get('score_mode', SCORE_MODE_MAX_TOKENED_LAST)
         if score_mode in [SCORE_MODE_MAX, SCORE_MODE_MAX_SUBTASK, SCORE_MODE_MAX_TOKENED_LAST]:
-            args['score_mode'] = score_mode
+            task_args['score_mode'] = score_mode
         else:
             raise LioLoaderException("Unknown score mode provided")
 
-        set_if_present(self.conf, args, 'max_submission_number', default=30)
-        set_if_present(self.conf, args, 'max_user_test_number', default=100)
-        set_if_present(self.conf, args, 'min_submission_interval', make_timedelta)
-        set_if_present(self.conf, args, 'min_user_test_interval', make_timedelta)
-
-        task = Task(**args)
+        set_if_present(self.conf, task_args, 'max_submission_number', default=30)
+        set_if_present(self.conf, task_args, 'max_user_test_number', default=100)
+        set_if_present(self.conf, task_args, 'min_submission_interval', make_timedelta)
+        set_if_present(self.conf, task_args, 'min_user_test_interval', make_timedelta)
+        task_args["attachments"] = dict()
 
         args = {}
-        args["task"] = task
         args["description"] = self.conf.get("version", "Default")
         args["autojudge"] = False
 
@@ -334,19 +332,29 @@ class LioTaskLoader(TaskLoader):
                         content = io.TextIOWrapper(input_file, encoding='ascii', newline=None).read()
                         input_digest = self.file_cacher.put_file_content(
                             content.encode('ascii'),
-                            f"Input {testcase['input']} for task {task.name}")
+                            f"Input {testcase['input']} for task {name}")
                     with zip.open(testcase['output'], 'r') as output_file:
                         content = io.TextIOWrapper(output_file, encoding='ascii', newline=None).read()
                         output_digest = self.file_cacher.put_file_content(
                             content.encode('ascii'),
-                            f"Output {testcase['output']} for task {task.name}")
+                            f"Output {testcase['output']} for task {name}")
                     codename = f"{group:0{max_group_digit_length}}{test_in_group}"
                     args["testcases"][codename] = \
                         Testcase(codename, group in public_groups, input_digest, output_digest)
 
+                    if args["task_type"] == "Batch" and group in [0, 1]:
+                        attachemnt_input_filename = f"{name}.i{codename}"
+                        task_args["attachments"][attachemnt_input_filename] = Attachment(filename=attachemnt_input_filename, digest=input_digest)
+                        if group in [0]:
+                            attachemnt_output_filename = f"{name}.o{codename}"
+                            task_args["attachments"][attachemnt_output_filename] = Attachment(filename=attachemnt_output_filename, digest=output_digest)
+
         for i in range(len(tests_per_group)):
             if tests_per_group[i] == 0:
                 raise LioLoaderException(f"No testcases for group {i}")
+
+        task = Task(**task_args)
+        args["task"] = task
 
         task.active_dataset = Dataset(**args)
 
