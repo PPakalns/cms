@@ -411,9 +411,13 @@ class LioContestLoader(ContestLoader):
         set_if_present(self.conf, args, 'max_submission_number')
         set_if_present(self.conf, args, 'max_user_test_number')
         set_if_present(self.conf, args, 'min_submission_interval', \
-                       conv=make_timedelta, default=make_timedelta(30))
+                       conv=make_timedelta, default=make_timedelta(5))
         set_if_present(self.conf, args, 'min_user_test_interval', \
-                       conv=make_timedelta, default=make_timedelta(30))
+                       conv=make_timedelta, default=make_timedelta(5))
+
+        set_if_present(self.conf, args, 'analysis_enabled')
+        set_if_present(self.conf, args, 'analysis_start', conv=to_datetime)
+        set_if_present(self.conf, args, 'analysis_stop', conv=to_datetime)
 
         tasks = list(self.conf['tasks'].keys())
 
