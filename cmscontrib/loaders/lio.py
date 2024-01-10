@@ -38,13 +38,6 @@ from cmscommon.constants import \
 from .italy_yaml import load_yaml_from_path, make_timedelta
 from datetime import timedelta
 
-# Workaround to make new features available in python3.8 for typst library
-import importlib.resources as importlib_res
-import importlib_resources
-setattr(importlib_res, "files", importlib_resources.files)
-setattr(importlib_res, "as_file", importlib_resources.as_file)
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -264,7 +257,7 @@ class LioTaskLoader(TaskLoader):
                 if code != 0:
                     raise LioLoaderException("Could not compile checker")
                 digest = self.file_cacher.put_file_from_path(
-                    checker_exe, "Checker for task {name}"
+                    checker_exe, f"Checker for task {name}"
                 )
             args["managers"]["checker"] = Manager(manager_name, digest)
             evaluation_param = "comparator"
