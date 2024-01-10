@@ -38,6 +38,12 @@ from cmscommon.constants import \
 from .italy_yaml import load_yaml_from_path, make_timedelta
 from datetime import timedelta
 
+# Workaround to make new features available in python3.8 for typst library
+import importlib.resources as importlib_res
+import importlib_resources
+setattr(importlib_res, "files", importlib_resources.files)
+setattr(importlib_res, "as_file", importlib_resources.as_file)
+
 logger = logging.getLogger(__name__)
 
 
