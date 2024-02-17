@@ -68,6 +68,11 @@ def to_datetime(dt):
     dt = dt.astimezone(datetime.timezone.utc)
     return dt.replace(tzinfo=None)
 
+def submission_format_convert(value):
+    if isinstance(value, str):
+        return [f"{value}.%l"]
+    elif isinstance(value, list):
+        return value
 
 class LioTaskLoader(TaskLoader):
 
@@ -190,7 +195,7 @@ class LioTaskLoader(TaskLoader):
             if task_args['statements']:
                 task_args['primary_statements'] = self.conf.get('primary_statements', ["lv"])
 
-        set_if_present(self.conf, task_args, 'submission_format', default=[f"{name}.%l"])
+        set_if_present(self.conf, task_args, 'submission_format', conv=submission_format_convert, default=submission_format_convert(name))
 
         set_if_present(self.conf, task_args, 'score_precision')
 
