@@ -82,8 +82,16 @@ class LioTaskLoader(TaskLoader):
     def __init__(self, path, file_cacher):
         super().__init__(path, file_cacher)
         self.task_dir = os.path.dirname(self.path)
-        self.conf = load_yaml_from_path(self.path)
 
+        conf = load_yaml_from_path(self.path)
+        path = self.path
+        while base := conf.pop("base", None):
+            path = os.path.join(os.path.dirname(self.path), base)
+            next_conf = load_yaml_from_path(path)
+            next_conf.update(conf)
+            conf = next_conf
+
+        self.conf = conf
 
     @staticmethod
     def detect(path):
