@@ -975,7 +975,7 @@ msgid "%(lang)s"
 msgstr "%(lang)s"
 
 msgid "Some details"
-msgstr "Dažas detaļas"
+msgstr "Tehniskā informācija"
 
 msgid "Compilation commands"
 msgstr "Kompilēšanas komandas"
