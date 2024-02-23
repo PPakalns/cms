@@ -152,6 +152,7 @@ setup(
             "cmsAddTestcases=cmscontrib.AddTestcases:main",
             "cmsAddUser=cmscontrib.AddUser:main",
             "cmsCleanFiles=cmscontrib.CleanFiles:main",
+            "cmsCollectStatistics=cmscontrib.CollectStatistics:main",
             "cmsDumpExporter=cmscontrib.DumpExporter:main",
             "cmsDumpImporter=cmscontrib.DumpImporter:main",
             "cmsDumpUpdater=cmscontrib.DumpUpdater:main",
