@@ -112,6 +112,7 @@ def main():
                 statistics[submission.id] = {
                     "task": submission.task.name,
                     "status": "OK",
+                    "language": submission.language,
                     "comment": submission.short_comment,
                     "time": [],
                     "memory": [],
@@ -177,6 +178,7 @@ def main():
                     "id",
                     "task",
                     "status",
+                    "language",
                     "comment",
                     "metric",
                 ]
@@ -188,6 +190,7 @@ def main():
                             id,
                             stats['task'],
                             stats['status'],
+                            stats['language'],
                             stats['comment'],
                             key,
                             *stats[key]
