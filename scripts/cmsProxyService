@@ -20,6 +20,8 @@
 # We enable monkey patching to make many libraries gevent-friendly
 # (for instance, urllib3, used by requests)
 import gevent.monkey
+
+from cms.util import default_argument_parser_init
 gevent.monkey.patch_all()  # noqa
 
 import logging
@@ -38,9 +40,17 @@ def main():
 
     """
     test_db_connection()
-    success = default_argument_parser("Ranking relayer for CMS.",
+
+    description = "Ranking relayer for CMS."
+    ask_contest = ask_for_contest
+
+    parser = default_argument_parser_init(description, ask_contest=ask_contest)
+    parser.add_argument("--rankings", type=int, nargs="*", help="zero based indexes of ranking servers from cms.conf to send information to, if not provided, information is sent to all ranking servers")
+
+    success = default_argument_parser(description,
                                       ProxyService,
-                                      ask_contest=ask_for_contest).run()
+                                      ask_contest=ask_for_contest,
+                                      custom_argument_parser=parser).run()
     return 0 if success is True else 1
 
 

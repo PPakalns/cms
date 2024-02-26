@@ -247,7 +247,7 @@ class ProxyService(TriggeredService):
 
     """
 
-    def __init__(self, shard, contest_id):
+    def __init__(self, args, shard, contest_id):
         """Start the service with the given parameters.
 
         Create an instance of the ProxyService and make it listen on
@@ -272,8 +272,13 @@ class ProxyService(TriggeredService):
 
         # Create one executor for each ranking.
         self.rankings = list()
-        for ranking in config.rankings:
-            self.add_executor(ProxyExecutor(ranking))
+
+        # Empty array or list of indexes to rankings for which information should be sent
+        self.ranking_ids = args.rankings
+
+        for idx, ranking in enumerate(config.rankings):
+            if len(self.ranking_ids) == 0 or idx in self.ranking_ids:
+                self.add_executor(ProxyExecutor(ranking))
 
         # Enqueue the dispatch of some initial data to rankings. Needs
         # to be done before the sweeper is started, as otherwise RWS
