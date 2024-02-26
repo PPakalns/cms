@@ -34,6 +34,8 @@ import chardet
 import gevent
 import gevent.socket
 
+from typing import Optional
+
 from cms import ServiceCoord, ConfigError, async_config, config
 
 
@@ -185,20 +187,15 @@ def get_service_shards(service):
         except KeyError:
             return i
 
-
-def default_argument_parser(description, cls, ask_contest=None):
-    """Default argument parser for services.
-
-    This has two versions, depending on whether the service needs a
-    contest_id, or not.
+def default_argument_parser_init(description, ask_contest=None) -> argparse.ArgumentParser:
+    """Default argparse.ArgumentParser for services.
 
     description (string): description of the service.
-    cls (type): service's class.
     ask_contest (function|None): None if the service does not require
         a contest, otherwise a function that returns a contest_id
         (after asking the admins?)
 
-    return (object): an instance of a service.
+    return (argparse.ArgumentParser): an instance of a ArgumentParser.
 
     """
     parser = argparse.ArgumentParser(description=description)
@@ -213,6 +210,32 @@ def default_argument_parser(description, cls, ask_contest=None):
         contest_id_help += " (ignored)"
     parser.add_argument("-c", "--contest-id", action="store",
                         type=utf8_decoder, help=contest_id_help)
+    return parser
+
+def default_argument_parser(description, cls, ask_contest=None,
+                            custom_argument_parser: Optional[argparse.ArgumentParser]=None):
+    """Default argument parser for services.
+
+    This has two versions, depending on whether the service needs a
+    contest_id, or not.
+
+    description (string): description of the service.
+    cls (type): service's class.
+    ask_contest (function|None): None if the service does not require
+        a contest, otherwise a function that returns a contest_id
+        (after asking the admins?)
+    custom_argument_parser (argparser.ArgumentParser|None): None if the service does not require
+        a contest, otherwise a function that returns a contest_id
+        (after asking the admins?)
+
+    return (object): an instance of a service.
+
+    """
+    if custom_argument_parser is None:
+        parser = default_argument_parser_init(description, ask_contest)
+    else:
+        parser = custom_argument_parser
+
     args = parser.parse_args()
 
     try:
@@ -222,13 +245,17 @@ def default_argument_parser(description, cls, ask_contest=None):
                           "no shard specified for service %s, "
                           "quitting." % (cls.__name__,))
 
+    add_args = []
+    if custom_argument_parser:
+        add_args = [args]
+
     if ask_contest is None:
-        return cls(args.shard)
+        return cls(*add_args, args.shard)
     contest_id = contest_id_from_args(args.contest_id, ask_contest)
     if contest_id is None:
-        return cls(args.shard)
+        return cls(*add_args, args.shard)
     else:
-        return cls(args.shard, contest_id)
+        return cls(*add_args, args.shard, contest_id)
 
 
 def contest_id_from_args(args_contest_id, ask_contest):
