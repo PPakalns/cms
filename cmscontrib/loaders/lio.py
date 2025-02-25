@@ -415,24 +415,23 @@ class LioTaskLoader(TaskLoader):
                         codename, group in public_groups, input_digest, output_digest
                     )
 
-                    if args["task_type"] == "Batch":
-                        if attachment_value := attachment_groups.get(group):
-                            if attachment_value["input"]:
-                                attachemnt_input_filename = f"{name}.i{codename}"
-                                task_args["attachments"][attachemnt_input_filename] = (
-                                    Attachment(
-                                        filename=attachemnt_input_filename,
-                                        digest=input_digest,
-                                    )
+                    if attachment_value := attachment_groups.get(group):
+                        if attachment_value["input"]:
+                            attachemnt_input_filename = f"{name}.i{codename}"
+                            task_args["attachments"][attachemnt_input_filename] = (
+                                Attachment(
+                                    filename=attachemnt_input_filename,
+                                    digest=input_digest,
                                 )
-                                if attachment_value["output"]:
-                                    attachemnt_output_filename = f"{name}.o{codename}"
-                                    task_args["attachments"][
-                                        attachemnt_output_filename
-                                    ] = Attachment(
+                            )
+                            if attachment_value["output"]:
+                                attachemnt_output_filename = f"{name}.o{codename}"
+                                task_args["attachments"][attachemnt_output_filename] = (
+                                    Attachment(
                                         filename=attachemnt_output_filename,
                                         digest=output_digest,
                                     )
+                                )
 
         for i in range(len(tests_per_group)):
             if tests_per_group[i] == 0:
