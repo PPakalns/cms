@@ -32,7 +32,7 @@ import os
 import re
 
 from setuptools import setup, find_packages
-from setuptools.command.build_py import build_py
+from setuptools.command.build import build
 
 
 PACKAGE_DATA = {
@@ -53,11 +53,11 @@ PACKAGE_DATA = {
         "contest/templates/*.*",
         "contest/templates/macro/*.*",
     ],
-    "cms.service": [
-        "templates/printing/*.*",
-    ],
     "cms.locale": [
         "*/LC_MESSAGES/*.*",
+    ],
+    "cmscontrib": [
+        "loaders/polygon/testlib.h",
     ],
     "cmsranking": [
         "static/img/*.*",
@@ -66,6 +66,8 @@ PACKAGE_DATA = {
     ],
     "cmstestsuite": [
         "code/*.*",
+        "tasks/batch_and_output/code/*",
+        "tasks/batch_and_output/data/*",
         "tasks/batch_stdio/data/*.*",
         "tasks/batch_fileio/data/*.*",
         "tasks/batch_fileio_managed/code/*",
@@ -102,45 +104,34 @@ def find_version():
     raise RuntimeError("Unable to find version string.")
 
 
-# We piggyback the translation catalogs compilation onto build_py since
+# We piggyback the translation catalogs compilation onto build since
 # the po and mofiles will be part of the package data for cms.locale,
 # which is collected at this stage.
-class build_py_and_l10n(build_py):
-    def run(self):
-        self.run_command("compile_catalog")
-        # The build command of distutils/setuptools searches the tree
-        # and compiles a list of data files before run() is called and
-        # then stores that value. Hence we need to refresh it.
-        self.data_files = self._get_data_files()
-        super().run()
+class build_with_l10n(build):
+    sub_commands = [('compile_catalog', None)] + build.sub_commands
 
 
 setup(
     name="cms",
     version=find_version(),
-    author="The CMS development team",
-    author_email="contestms@googlegroups.com",
-    url="https://github.com/cms-dev/cms",
-    download_url="https://github.com/cms-dev/cms/archive/master.tar.gz",
-    description="A contest management system and grader "
-                "for IOI-like programming competitions",
     packages=find_packages(),
     package_data=PACKAGE_DATA,
-    cmdclass={"build_py": build_py_and_l10n},
-    scripts=["scripts/cmsLogService",
-             "scripts/cmsScoringService",
-             "scripts/cmsEvaluationService",
-             "scripts/cmsWorker",
-             "scripts/cmsResourceService",
-             "scripts/cmsChecker",
-             "scripts/cmsContestWebServer",
-             "scripts/cmsAdminWebServer",
-             "scripts/cmsProxyService",
-             "scripts/cmsPrintingService",
-             "scripts/cmsRankingWebServer",
-             "scripts/cmsEventService",
-             "scripts/cmsInitDB",
-             "scripts/cmsDropDB"],
+    cmdclass={"build": build_with_l10n},
+    scripts=[
+        "scripts/cmsLogService",
+        "scripts/cmsScoringService",
+        "scripts/cmsEvaluationService",
+        "scripts/cmsWorker",
+        "scripts/cmsResourceService",
+        "scripts/cmsChecker",
+        "scripts/cmsContestWebServer",
+        "scripts/cmsAdminWebServer",
+        "scripts/cmsProxyService",
+        "scripts/cmsRankingWebServer",
+        "scripts/cmsEventService",
+        "scripts/cmsInitDB",
+        "scripts/cmsDropDB",
+    ],
     entry_points={
         "console_scripts": [
             "cmsRunFunctionalTests=cmstestsuite.RunFunctionalTests:main",
@@ -170,9 +161,12 @@ setup(
             "cmsRemoveUser=cmscontrib.RemoveUser:main",
             "cmsSpoolExporter=cmscontrib.SpoolExporter:main",
             "cmsMake=cmstaskenv.cmsMake:main",
+            "cmsPrometheusExporter=cmscontrib.PrometheusExporter:main",
+            "cmsTelegramBot=cmscontrib.TelegramBot:main",
         ],
         "cms.grading.tasktypes": [
             "Batch=cms.grading.tasktypes.Batch:Batch",
+            "BatchAndOutput=cms.grading.tasktypes.BatchAndOutput:BatchAndOutput",
             "Communication=cms.grading.tasktypes.Communication:Communication",
             "OutputOnly=cms.grading.tasktypes.OutputOnly:OutputOnly",
             "TwoSteps=cms.grading.tasktypes.TwoSteps:TwoSteps",
@@ -187,13 +181,13 @@ setup(
             "C++11 / g++=cms.grading.languages.cpp11_gpp:Cpp11Gpp",
             "C++14 / g++=cms.grading.languages.cpp14_gpp:Cpp14Gpp",
             "C++17 / g++=cms.grading.languages.cpp17_gpp:Cpp17Gpp",
+            "C++20 / g++=cms.grading.languages.cpp20_gpp:Cpp20Gpp",
             "C11 / gcc=cms.grading.languages.c11_gcc:C11Gcc",
             "C# / Mono=cms.grading.languages.csharp_mono:CSharpMono",
             "Haskell / ghc=cms.grading.languages.haskell_ghc:HaskellGhc",
             "Java / JDK=cms.grading.languages.java_jdk:JavaJDK",
             "Pascal / fpc=cms.grading.languages.pascal_fpc:PascalFpc",
             "PHP=cms.grading.languages.php:Php",
-            "Python 2 / CPython=cms.grading.languages.python2_cpython:Python2CPython",
             "Python 3 / CPython=cms.grading.languages.python3_cpython:Python3CPython",
             "Python 3 / PyPy=cms.grading.languages.python3_pypy:Python3PyPy",
             "Rust=cms.grading.languages.rust:Rust",
@@ -203,14 +197,4 @@ setup(
             "Discord=cms.service.event_handlers.discord:DiscordEventExecutor",
         ]
     },
-    keywords="ioi programming contest grader management system",
-    license="Affero General Public License v3",
-    classifiers=[
-        "Development Status :: 5 - Production/Stable",
-        "Natural Language :: English",
-        "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3.8",
-        "License :: OSI Approved :: "
-        "GNU Affero General Public License v3",
-    ]
 )

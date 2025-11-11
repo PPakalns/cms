@@ -23,7 +23,8 @@
 import datetime
 import logging
 import os
-import subprocess
+import sys
+import types
 
 from cms import TOKEN_MODE_FINITE
 from cmscommon.datetime import get_system_timezone
@@ -62,11 +63,6 @@ class TestRunner:
         self.num_users = 0
         self.workers = workers
 
-        if CONFIG["TEST_DIR"] is not None:
-            # Set up our expected environment.
-            os.chdir("%(TEST_DIR)s" % CONFIG)
-            os.environ["PYTHONPATH"] = "%(TEST_DIR)s" % CONFIG
-
         self.start_generic_services()
         self.suffix = self.framework.initialize_aws()
 
@@ -86,21 +82,11 @@ class TestRunner:
                      self.n_submissions, self.n_user_tests, self.n_tests)
 
     def load_cms_conf(self):
-        try:
-            git_root = subprocess.check_output(
-                "git rev-parse --show-toplevel", shell=True,
-                stderr=subprocess.DEVNULL).decode('utf-8').strip()
-        except subprocess.CalledProcessError:
-            git_root = None
-        CONFIG["TEST_DIR"] = git_root
-        CONFIG["CONFIG_PATH"] = "%s/config/cms.conf" % CONFIG["TEST_DIR"]
-        if CONFIG["TEST_DIR"] is None:
-            CONFIG["CONFIG_PATH"] = "/usr/local/etc/cms.conf"
+        CONFIG["CONFIG_PATH"] = os.path.join(sys.prefix, "etc/cms.toml")
 
         # Override CMS config path when environment variable is present
-        CMS_CONFIG_ENV_VAR = "CMS_CONFIG"
-        if CMS_CONFIG_ENV_VAR in os.environ:
-            CONFIG["CONFIG_PATH"] = os.environ[CMS_CONFIG_ENV_VAR]
+        if "CMS_CONFIG" in os.environ:
+            CONFIG["CONFIG_PATH"] = os.environ["CMS_CONFIG"]
 
         return self.framework.get_cms_config()
 
@@ -128,10 +114,10 @@ class TestRunner:
 
     # Data creation.
 
-    def create_contest(self):
+    def create_contest(self) -> int:
         """Create a new contest.
 
-        return (int): contest id.
+        return: contest id.
 
         """
         start_time = datetime.datetime.utcnow()
@@ -156,10 +142,10 @@ class TestRunner:
         logger.info("Created contest %s.", self.contest_id)
         return self.contest_id
 
-    def create_or_get_user(self):
+    def create_or_get_user(self) -> int:
         """Create a new user if it doesn't exists already.
 
-        return (int): user id.
+        return: user id.
 
         """
         self.num_users += 1
@@ -192,12 +178,12 @@ class TestRunner:
             logging.info("Created user with id %s.", self.user_id)
         return self.user_id
 
-    def create_or_get_task(self, task_module):
+    def create_or_get_task(self, task_module: types.ModuleType) -> int:
         """Create a new task if it does not exist.
 
-        task_module (module): a task as in task/<name>.
+        task_module: a task as in task/<name>.
 
-        return (int): task id of the new (or existing) task.
+        return: task id of the new (or existing) task.
 
         """
         name = "%s_%s" % (task_module.task_info['name'], self.suffix)
@@ -283,10 +269,10 @@ class TestRunner:
                 for lang in test.languages:
                     yield (test, lang)
 
-    def submit_tests(self, concurrent_submit_and_eval=True):
+    def submit_tests(self, concurrent_submit_and_eval: bool = True):
         """Create the tasks, and submit for all languages in all tests.
 
-        concurrent_submit_and_eval (boolean): if False, start ES only
+        concurrent_submit_and_eval: if False, start ES only
             after CWS received all the submissions, with the goal of
             having a clearer view of the time each step takes.
 

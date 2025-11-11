@@ -29,11 +29,11 @@ __all__ = ["Python3PyPy"]
 class Python3PyPy(CompiledLanguage):
     """This defines the Python programming language, version 3 (more
     precisely, the subversion of Python 3 available on the system)
-    using the default interpeter in the system.
+    using the default PyPy interpeter in the system.
 
     """
 
-    MAIN_FILENAME = "__main__.py"
+    MAIN_FILENAME = "__main__.pyc"
 
     @property
     def name(self):
@@ -58,18 +58,16 @@ class Python3PyPy(CompiledLanguage):
 
         commands = []
         files_to_package = []
-
-        # The file with the entry point must be in first position.
-        if source_filename := source_filenames[0]:
-            commands.append(["/bin/mv", source_filename, self.MAIN_FILENAME])
-
         commands.append(["/usr/bin/pypy3", "-m", "compileall", "-b", "."])
         for idx, source_filename in enumerate(source_filenames):
-            if idx == 0:
-                source_filename = self.MAIN_FILENAME
             basename = os.path.splitext(os.path.basename(source_filename))[0]
             pyc_filename = "%s.pyc" % basename
-            files_to_package.append(pyc_filename)
+            # The file with the entry point must be in first position.
+            if idx == 0:
+                commands.append(["/bin/mv", pyc_filename, self.MAIN_FILENAME])
+                files_to_package.append(self.MAIN_FILENAME)
+            else:
+                files_to_package.append(pyc_filename)
 
         commands.append(["/usr/bin/zip", executable_filename]
                         + files_to_package)
