@@ -69,7 +69,11 @@ class EventService(TriggeredService):
         super().__init__(shard)
 
         for cls in plugin_list("cms.service.event_handlers"):
-            for executor_config in config.event_service_handlers.get(cls.codename(), []):
+            if config.event_service is None:
+                break
+
+            if executor_config := config.event_service.event_service_handlers.get(cls.codename()):
+                print(executor_config)
                 handler = cls(executor_config)
                 logger.info(f"Added event executor {handler.codename()}")
                 self.add_executor(handler)

@@ -169,8 +169,8 @@ def discord_process(
     shard = 0
     root_logger = logging.getLogger()
 
-    log_dir = os.path.join(config.log_dir, "%s-%d" % (name, shard))
-    mkdir(config.log_dir)
+    log_dir = os.path.join(config.global_.log_dir, "%s-%d" % (name, shard))
+    mkdir(config.global_.log_dir)
     mkdir(log_dir)
 
     log_filename = time.strftime("%Y-%m-%d-%H-%M-%S.log")
@@ -178,7 +178,7 @@ def discord_process(
     # Install a file handler.
     file_handler = logging.FileHandler(os.path.join(log_dir, log_filename),
                                        mode='w', encoding='utf-8')
-    if config.file_log_debug:
+    if config.global_.file_log_debug:
         file_log_level = logging.DEBUG
     else:
         file_log_level = logging.INFO
@@ -226,11 +226,11 @@ class DiscordEventExecutor(EventExecutor):
     def __init__(self, params):
         super().__init__()
 
-        token = params.get("token", None)
+        token = params.token
         if token is None:
             raise Exception("Discord event executor missing token parameter in configuration.")
-        channel_id = params.get("channel_id", None)
-        storage_path = params.get("storage_path", None)
+        channel_id = params.channel_id
+        storage_path = params.storage_path
         if storage_path is None:
             raise Exception("Storage path not provided")
 

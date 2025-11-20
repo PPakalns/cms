@@ -27,7 +27,6 @@ import os
 import sys
 import typing
 from dataclasses import dataclass
-from typing import Any
 
 from cms.log import set_detailed_logs
 from cmscommon import conf_parser
@@ -160,8 +159,14 @@ class TelegramBotConfig:
     chat_id: str
 
 @dataclass()
+class EventService:
+    token: str
+    channel_id: int
+    storage_path: str
+
+@dataclass()
 class EventServiceConfig:
-    event_service_handlers: dict[str, dict[str, Any]]
+    event_service_handlers: dict[str, EventService]
 
 
 field_helper = lambda T: dataclasses.field(default_factory=T)
