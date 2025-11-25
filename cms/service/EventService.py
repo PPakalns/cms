@@ -53,7 +53,14 @@ class EventOperation(QueueItem):
         return "event %s" % (self.type)
 
 
-class EventService(TriggeredService):
+class EventExecutor(Executor[EventOperation]):
+    @staticmethod
+    @abstractmethod
+    def codename() -> str:
+        return ""
+
+
+class EventService(TriggeredService[EventOperation, EventExecutor]):
     """Evaluation service."""
 
     # Executor refresh
@@ -75,15 +82,13 @@ class EventService(TriggeredService):
                 self.add_executor(handler)
 
         if self._executors:
-            self.add_timeout(self.sweep_executors,
-                             None,
-                             EventService.EXECUTOR_REFRESH.total_seconds(),
-                             immediately=True)
+            self.start_sweeper(347.0)
         else:
             logger.warning("No executor added for EventService")
 
-    def sweep_executors(self):
+    def _missing_operations(self) -> int:
         self.enqueue(EventOperation(EventOperation.REFRESH))
+        return 1
 
     @rpc_method
     def question_new(self, question_id: int):
@@ -151,11 +156,4 @@ class EventService(TriggeredService):
                 contest_id=contest_id,
             )
         )
-
-
-class EventExecutor(Executor[EventOperation]):
-    @staticmethod
-    @abstractmethod
-    def codename() -> str:
-        return ""
 

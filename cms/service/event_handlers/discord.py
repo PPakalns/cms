@@ -147,6 +147,10 @@ async def start_client(client: DiscordBot, token: str):
     await client.start(token)
     logger.info("Stopping discord client")
 
+async def sleeper():
+    while True:
+        await asyncio.sleep(1)     # never blocks the loop
+
 async def discord_process_async(queue: mp.Queue, token: str, channel_id: int, storage_path: str):
     logger.info("Starting discord thread")
     intents = discord.Intents.default()
@@ -155,7 +159,7 @@ async def discord_process_async(queue: mp.Queue, token: str, channel_id: int, st
     store = KeyValueStore(storage_path)
     client = DiscordBot(intents=intents, channel_id=channel_id, store=store)
 
-    await asyncio.gather(start_client(client, token), process_queue(queue, client))
+    await asyncio.gather(start_client(client, token), process_queue(queue, client), sleeper())
 
 def discord_process(
         queue: mp.Queue,
@@ -241,10 +245,10 @@ class DiscordEventExecutor(EventExecutor):
     def codename():
         return "Discord"
 
-    def execute(self, entry: QueueEntry):
+    def execute(self, entry: QueueEntry[EventOperation]):
         """Process events
         """
-        item: EventOperation = entry.item
+        item = entry.item
 
         with SessionGen() as session:
             if item.type == EventOperation.REFRESH:
