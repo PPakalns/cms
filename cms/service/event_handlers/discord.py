@@ -121,6 +121,8 @@ class DiscordBot(discord.Bot):
             logger.info(f'Channel found')
 
 async def process_queue(queue: mp.Queue, client: DiscordBot):
+    logger.info("Initial process queue delay")
+    await asyncio.sleep(5)
     logger.info("Processing queue")
     while True:
         try:
@@ -159,7 +161,7 @@ async def discord_process_async(queue: mp.Queue, token: str, channel_id: int, st
     store = KeyValueStore(storage_path)
     client = DiscordBot(intents=intents, channel_id=channel_id, store=store)
 
-    await asyncio.gather(start_client(client, token), process_queue(queue, client), sleeper())
+    await asyncio.gather(process_queue(queue, client), start_client(client, token))
 
 def discord_process(
         queue: mp.Queue,
