@@ -34,13 +34,6 @@ from cms.plugin import plugin_list
 logger = logging.getLogger(__name__)
 
 
-class EventExecutor(Executor):
-    @staticmethod
-    @abstractmethod
-    def codename() -> str:
-        return ""
-
-
 class EventOperation(QueueItem):
     """The operation for different kind of cms events."""
 
@@ -82,11 +75,10 @@ class EventService(TriggeredService):
                 self.add_executor(handler)
 
         if self._executors:
-            pass
-            # self.add_timeout(self.sweep_executors,
-            #                  None,
-            #                  EventService.EXECUTOR_REFRESH.total_seconds(),
-            #                  immediately=True)
+            self.add_timeout(self.sweep_executors,
+                             None,
+                             EventService.EXECUTOR_REFRESH.total_seconds(),
+                             immediately=True)
         else:
             logger.warning("No executor added for EventService")
 
@@ -159,3 +151,11 @@ class EventService(TriggeredService):
                 contest_id=contest_id,
             )
         )
+
+
+class EventExecutor(Executor[EventOperation]):
+    @staticmethod
+    @abstractmethod
+    def codename() -> str:
+        return ""
+
