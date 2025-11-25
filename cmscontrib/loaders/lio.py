@@ -19,7 +19,6 @@
 import io
 import os
 import re
-import pytz
 import tempfile
 import logging
 import typst
@@ -32,21 +31,13 @@ import shutil
 from cms import config
 from cms.db import Contest, Dataset, Task, Statement, Testcase, Manager, Attachment
 from .base_loader import ContestLoader, TaskLoader
-from cms import TOKEN_MODE_DISABLED, TOKEN_MODE_FINITE, TOKEN_MODE_INFINITE
+from cms import TOKEN_MODE_DISABLED
 from cmscommon.constants import (
     SCORE_MODE_MAX,
     SCORE_MODE_MAX_SUBTASK,
     SCORE_MODE_MAX_TOKENED_LAST,
 )
 from .italy_yaml import load_yaml_from_path, make_timedelta
-from datetime import timedelta
-
-# Workaround to make new features available in python3.8 for typst library
-import importlib.resources as importlib_res
-import importlib_resources
-
-setattr(importlib_res, "files", importlib_resources.files)
-setattr(importlib_res, "as_file", importlib_resources.as_file)
 
 logger = logging.getLogger(__name__)
 

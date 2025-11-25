@@ -22,7 +22,7 @@ information about them to specified EventExecutors.
 EventExecutors could respond to events by sending chat messages, etc.
 """
 
-from abc import abstractstaticmethod
+from abc import abstractmethod
 import logging
 from datetime import timedelta
 
@@ -34,7 +34,8 @@ from cms.plugin import plugin_list
 logger = logging.getLogger(__name__)
 
 class EventExecutor(Executor):
-    @abstractstaticmethod
+    @abstractmethod
+    @staticmethod
     def codename() -> str:
         return ""
 
