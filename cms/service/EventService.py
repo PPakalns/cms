@@ -33,15 +33,16 @@ from cms.plugin import plugin_list
 
 logger = logging.getLogger(__name__)
 
+
 class EventExecutor(Executor):
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def codename() -> str:
         return ""
 
+
 class EventOperation(QueueItem):
-    """The operation for different kind of cms events.
-    """
+    """The operation for different kind of cms events."""
 
     QUESTION_NEW = "question_new"
     QUESTION_REPLIED = "question_replied"
@@ -58,10 +59,9 @@ class EventOperation(QueueItem):
     def __str__(self):
         return "event %s" % (self.type)
 
-class EventService(TriggeredService):
-    """Evaluation service.
 
-    """
+class EventService(TriggeredService):
+    """Evaluation service."""
 
     # Executor refresh
     EXECUTOR_REFRESH = timedelta(seconds=59)
@@ -73,7 +73,9 @@ class EventService(TriggeredService):
             if config.event_service is None:
                 break
 
-            if executor_config := config.event_service.event_service_handlers.get(cls.codename()):
+            if executor_config := config.event_service.event_service_handlers.get(
+                cls.codename()
+            ):
                 print(executor_config)
                 handler = cls(executor_config)
                 logger.info(f"Added event executor {handler.codename()}")
@@ -97,7 +99,9 @@ class EventService(TriggeredService):
 
         question_id (int): the id of the question.
         """
-        self.enqueue(EventOperation(EventOperation.QUESTION_NEW, question_id=question_id))
+        self.enqueue(
+            EventOperation(EventOperation.QUESTION_NEW, question_id=question_id)
+        )
 
     @rpc_method
     def question_replied(self, question_id: int):
@@ -105,7 +109,9 @@ class EventService(TriggeredService):
 
         question_id (int): the id of the question.
         """
-        self.enqueue(EventOperation(EventOperation.QUESTION_REPLIED, question_id=question_id))
+        self.enqueue(
+            EventOperation(EventOperation.QUESTION_REPLIED, question_id=question_id)
+        )
 
     @rpc_method
     def question_ignored(self, question_id: int):
@@ -113,7 +119,9 @@ class EventService(TriggeredService):
 
         question_id (int): the id of the question.
         """
-        self.enqueue(EventOperation(EventOperation.QUESTION_IGNORED, question_id=question_id))
+        self.enqueue(
+            EventOperation(EventOperation.QUESTION_IGNORED, question_id=question_id)
+        )
 
     @rpc_method
     def question_claimed(self, question_id: int):
@@ -121,7 +129,9 @@ class EventService(TriggeredService):
 
         question_id (int): the id of the question.
         """
-        self.enqueue(EventOperation(EventOperation.QUESTION_CLAIMED, question_id=question_id))
+        self.enqueue(
+            EventOperation(EventOperation.QUESTION_CLAIMED, question_id=question_id)
+        )
 
     @rpc_method
     def announcement_new(self, announcement_id: int):
@@ -129,7 +139,11 @@ class EventService(TriggeredService):
 
         announcement_id (int): the id of the announcement.
         """
-        self.enqueue(EventOperation(EventOperation.ANNOUNCEMENT_NEW, announcement_id=announcement_id))
+        self.enqueue(
+            EventOperation(
+                EventOperation.ANNOUNCEMENT_NEW, announcement_id=announcement_id
+            )
+        )
 
     @rpc_method
     def announcement_deleted(self, announcement_id: int, contest_id: int):
@@ -138,8 +152,10 @@ class EventService(TriggeredService):
         announcement_id (int): the id of the announcement.
         contest_id (int): the id of the contest.
         """
-        self.enqueue(EventOperation(
-            EventOperation.ANNOUNCEMENT_DELETED,
-            announcement_id=announcement_id,
-            contest_id=contest_id
-        ))
+        self.enqueue(
+            EventOperation(
+                EventOperation.ANNOUNCEMENT_DELETED,
+                announcement_id=announcement_id,
+                contest_id=contest_id,
+            )
+        )
