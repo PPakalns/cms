@@ -42,8 +42,15 @@ def truncate(s: str, length: int) -> str:
         return s
     return s[:length] + "..."
 
+@discord.commands.command()
+@discord.guild_only()
+async def alive(ctx: discord.commands.context.ApplicationContext):
+    if ctx.channel_id != ctx.bot.__getattribute__("channel_id"):
+        return
+    await ctx.send_response(content = "Bot is alive")
 
-class DiscordBot(discord.Client):
+
+class DiscordBot(discord.Bot):
     def __init__(self, channel_id: int, token: str, contest_id: int | None = None):
         intents = discord.Intents.default()
         intents.message_content = True
@@ -65,6 +72,10 @@ class DiscordBot(discord.Client):
         self.announcement_state: Dict[int, dict] = self._load_state(self.announcement_dir)
 
         self.target_channel: TextChannel | None = None
+
+        self.add_application_command(
+            alive
+        )
 
 
     def _load_state(self, directory: str) -> Dict[int, dict]:
