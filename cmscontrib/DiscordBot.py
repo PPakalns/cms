@@ -149,7 +149,7 @@ class DiscordBot(discord.Bot):
     async def db_loop(self):
         while True:
             with SessionGen() as ses:
-                query = ses.query(Question).join(Participation).join(Participation.contest).join(Question.admin)
+                query = ses.query(Question).join(Participation).join(Participation.contest).outerjoin(Question.admin)
 
                 if self.contest_id is not None:
                     query = query.filter(Participation.contest_id == self.contest_id)
@@ -163,7 +163,7 @@ class DiscordBot(discord.Bot):
                     qs.append(d)
 
                 anns = []
-                query = ses.query(Announcement).join(Admin).join(Contest)
+                query = ses.query(Announcement).outerjoin(Admin).join(Contest)
                 if self.contest_id is not None:
                     query = query.filter(Announcement.contest_id == self.contest_id)
 
