@@ -226,7 +226,7 @@ async def question_update(client: DiscordBot, old: dict, question: dict):
         logger.warning("Channel not found")
         return
 
-    if "message_id" in old:
+    if "message_id" not in old:
         new_message: Message = await channel.send(
             content = prepare_message_content(question)
         )
