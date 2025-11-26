@@ -159,15 +159,9 @@ class TelegramBotConfig:
     chat_id: str
 
 @dataclass()
-class EventService:
+class DiscordBotConfig:
     token: str
     channel_id: int
-    storage_path: str
-
-@dataclass()
-class EventServiceConfig:
-    event_service_handlers: dict[str, EventService]
-
 
 field_helper = lambda T: dataclasses.field(default_factory=T)
 
@@ -188,7 +182,7 @@ class Config:
     proxy_service: ProxyServiceConfig = field_helper(ProxyServiceConfig)
     prometheus: PrometheusConfig = field_helper(PrometheusConfig)
     telegram_bot: TelegramBotConfig | None = None
-    event_service: EventServiceConfig | None = None
+    discord_bot: DiscordBotConfig | None = None
     # This is the one that will be provided in the config file.
     services_: dict[str, list[tuple[str, int]]]
     # And this is the one we want to use inside CMS.

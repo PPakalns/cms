@@ -54,8 +54,6 @@ dependencies = [
 
     # Only for discord bot
     "py-cord>=2.6,<2.7",
-    "simplekv>=0.14,<0.15",
-    "asyncio-gevent>=0.2.5,<0.3",
 ]
 
 [project.urls]

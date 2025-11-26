@@ -163,6 +163,7 @@ setup(
             "cmsMake=cmstaskenv.cmsMake:main",
             "cmsPrometheusExporter=cmscontrib.PrometheusExporter:main",
             "cmsTelegramBot=cmscontrib.TelegramBot:main",
+            "cmsDiscordBot=cmscontrib.DiscordBot:main",
         ],
         "cms.grading.tasktypes": [
             "Batch=cms.grading.tasktypes.Batch:Batch",

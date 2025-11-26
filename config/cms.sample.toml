@@ -63,6 +63,7 @@ AdminWebServer = [["localhost", 21100]]
 ProxyService = [["localhost", 28600]]
 PrometheusExporter = []
 TelegramBot = []
+DiscordBot = []
 EventService = [["localhost", 25130]]
 
 
@@ -201,7 +202,9 @@ listen_port = 8811
 #bot_token = "..."
 #chat_id = "..."
 
-
+#[discord_bot]
+#token = "..."
+#channel_id = 1234
 
 # Service to process different kind of events raised by cms.
 # Register all handlers and their configuration
