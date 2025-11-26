@@ -331,10 +331,11 @@ class Question(Base):
     MAX_SUBJECT_LENGTH = 50
     MAX_TEXT_LENGTH = 2000
     QUICK_ANSWERS = {
-        "yes": "Yes",
-        "no": "No",
-        "invalid": "Invalid Question (not a Yes/No Question)",
-        "nocomment": "No Comment/Please refer to task statement",
+        "yes": "Jā",
+        "no": "Nē",
+        "invalid": "Nekorekts jautājums",
+        "answered": "Atbildēts uzdevuma nosacījumos",
+        "nocomment": "Bez komentāriem",
     }
 
     # Auto increment primary key.
