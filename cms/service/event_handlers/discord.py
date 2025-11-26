@@ -107,6 +107,7 @@ class DiscordBot(discord.Bot):
     async def get_target_channel(self) -> Optional[TextChannel]:
         if self.channel_id:
             channel = self.get_channel(self.channel_id)
+            print(f"CHANNEL {channel}")
             if isinstance(channel, TextChannel):
                 return channel
         return None
@@ -146,6 +147,8 @@ async def process_queue(queue: mp.Queue, client: DiscordBot):
                 logger.warn(f"Unknown call type: {call_type}")
         except:
             logger.error(f"Error while processing: {call_type}")
+
+        logger.info(f"Processing {call_type} completed!")
 
 async def start_client(client: DiscordBot, token: str):
     logger.info("Starting discord client")
