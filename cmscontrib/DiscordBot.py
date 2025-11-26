@@ -99,9 +99,6 @@ class DiscordBot(discord.Client):
     async def get_target_channel(self) -> TextChannel | None:
         return self.target_channel
 
-    async def run_bot(self):
-        await self.start(self.token)
-
     async def _store(
         self,
         obj: dict,
@@ -173,7 +170,7 @@ class DiscordBot(discord.Client):
             for ann in anns:
                 await self.store_announcement(ann)
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(10)
 
 def has_replied(question: Dict) -> bool:
     return question["reply_text"] or question["reply_subject"]
@@ -317,7 +314,7 @@ def main():
     dconfig = config.discord_bot
 
     bot = DiscordBot(dconfig.channel_id, dconfig.token, contest_id)
-    asyncio.run(bot.run_bot())
+    bot.run(bot.token)
 
 
 if __name__ == "__main__":
