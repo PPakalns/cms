@@ -249,6 +249,7 @@ async def question_update(client: DiscordBot, old: dict, question: dict):
         return
 
     message_id = old["message_id"]
+    question["message_id"] = message_id
 
     message: Optional[Message] = None
     if message_id:
