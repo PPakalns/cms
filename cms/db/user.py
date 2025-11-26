@@ -335,7 +335,8 @@ class Question(Base):
         "no": "Nē",
         "invalid": "Nekorekts jautājums",
         "answered": "Atbildēts uzdevuma nosacījumos",
-        "nocomment": "Bez komentāriem",
+        "nocomment": "Nav komentāru",
+        "announcement": "Skatīt paziņojumu sacensību sistēmā",
     }
 
     # Auto increment primary key.

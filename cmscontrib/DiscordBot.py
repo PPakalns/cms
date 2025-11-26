@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-# Contest Management System - Discord Bot, Telegram-style rewrite
-# Polls the DB periodically instead of receiving queue events.
-
 import os
 import yaml
 import asyncio
@@ -42,12 +39,13 @@ def truncate(s: str, length: int) -> str:
         return s
     return s[:length] + "..."
 
+
 @discord.commands.command()
 @discord.guild_only()
 async def alive(ctx: discord.commands.context.ApplicationContext):
     if ctx.channel_id != ctx.bot.__getattribute__("channel_id"):
         return
-    await ctx.send_response(content = "Bot is alive")
+    await ctx.send_response(content="Bot is alive")
 
 
 class DiscordBot(discord.Bot):
@@ -62,21 +60,24 @@ class DiscordBot(discord.Bot):
         self.contest_id = contest_id
 
         # Storage directories
-        self.question_dir = os.path.join(config.global_.data_dir, "discord", "questions")
-        self.announcement_dir = os.path.join(config.global_.data_dir, "discord", "announcements")
+        self.question_dir = os.path.join(
+            config.global_.data_dir, "discord", "questions"
+        )
+        self.announcement_dir = os.path.join(
+            config.global_.data_dir, "discord", "announcements"
+        )
         os.makedirs(self.question_dir, exist_ok=True)
         os.makedirs(self.announcement_dir, exist_ok=True)
 
         # Stores loaded YAML
         self.question_state: Dict[int, dict] = self._load_state(self.question_dir)
-        self.announcement_state: Dict[int, dict] = self._load_state(self.announcement_dir)
+        self.announcement_state: Dict[int, dict] = self._load_state(
+            self.announcement_dir
+        )
 
         self.target_channel: TextChannel | None = None
 
-        self.add_application_command(
-            alive
-        )
-
+        self.add_application_command(alive)
 
     def _load_state(self, directory: str) -> Dict[int, dict]:
         data = {}
@@ -120,7 +121,7 @@ class DiscordBot(discord.Bot):
         """Compare old/new DB object; call callback if changed; write YAML."""
         existing = store.get(obj["id"], dict())
         has_changed = False
-        for (k, v) in obj.items():
+        for k, v in obj.items():
             if existing.get(k, None) != v:
                 has_changed = True
 
@@ -131,12 +132,18 @@ class DiscordBot(discord.Bot):
                 f.write(yaml.safe_dump(new_obj))
             logger.info(f"Saved {obj['id']} yaml")
 
-
     async def store_question(self, q: dict):
-        await self._store(q, self.question_state, self.question_dir, self.question_callback)
+        await self._store(
+            q, self.question_state, self.question_dir, self.question_callback
+        )
 
     async def store_announcement(self, ann: dict):
-        await self._store(ann, self.announcement_state, self.announcement_dir, self.announcement_callback)
+        await self._store(
+            ann,
+            self.announcement_state,
+            self.announcement_dir,
+            self.announcement_callback,
+        )
 
     async def question_callback(self, old: dict, new: dict) -> dict:
         await question_update(self, old, new)
@@ -149,7 +156,12 @@ class DiscordBot(discord.Bot):
     async def db_loop(self):
         while True:
             with SessionGen() as ses:
-                query = ses.query(Question).join(Participation).join(Participation.contest).outerjoin(Question.admin)
+                query = (
+                    ses.query(Question)
+                    .join(Participation)
+                    .join(Participation.contest)
+                    .outerjoin(Question.admin)
+                )
 
                 if self.contest_id is not None:
                     query = query.filter(Participation.contest_id == self.contest_id)
@@ -183,8 +195,10 @@ class DiscordBot(discord.Bot):
 
             await asyncio.sleep(10)
 
+
 def has_replied(question: Dict) -> bool:
     return question["reply_text"] or question["reply_subject"]
+
 
 def esc_question_status_text(question: Dict, full=False) -> str:
     by_admin = ""
@@ -205,12 +219,14 @@ def esc_question_status_text(question: Dict, full=False) -> str:
 
     return ":red_circle: Waiting for reply"
 
+
 def esc_reply_text(question: Dict) -> str:
     reply = (
         f"### Reply: {esc(question['reply_subject'])}\n"
         f"{esc(question['reply_text'])}"
     )
     return reply
+
 
 def prepare_message_content(question: Dict):
     content = (
@@ -221,10 +237,7 @@ def prepare_message_content(question: Dict):
         f"### State: {esc_question_status_text(question)}"
     )
     if has_replied(question):
-        content += (
-            "\n\n"
-            f"{esc_reply_text(question)}"
-        )
+        content += "\n\n" f"{esc_reply_text(question)}"
     return content
 
 
@@ -236,7 +249,7 @@ async def question_update(client: DiscordBot, old: dict, question: dict):
 
     if "message_id" not in old:
         new_message: Message = await channel.send(
-            content = prepare_message_content(question)
+            content=prepare_message_content(question)
         )
         logger.info("Question message created")
 
@@ -287,11 +300,13 @@ async def announcement_update(client: DiscordBot, old: Dict, new: Dict):
     if not channel:
         return
 
-    await channel.send(content=truncate(
+    await channel.send(
+        content=truncate(
             f"### Announcement (contest: {esc(new['contest'])}, admin: {esc(new['admin'])})\n"
             f"### {esc(new['subject'])}\n"
-            f"{esc(new['text'])}\n"
-        , 1000)
+            f"{esc(new['text'])}\n",
+            1000,
+        )
     )
     logger.info("Announcement message sent to channel")
 
@@ -320,8 +335,7 @@ def main():
         contest_id = None
 
     if config.discord_bot is None:
-        raise ConfigError(
-            "Need to configure the Telegram bot before starting it")
+        raise ConfigError("Need to configure the Telegram bot before starting it")
 
     dconfig = config.discord_bot
 
