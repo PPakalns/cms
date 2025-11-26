@@ -22,6 +22,7 @@ import json
 import time
 import logging
 import asyncio
+import asyncio_gevent
 import discord
 import queue as pqueue
 import multiprocessing as mp
@@ -44,6 +45,8 @@ from cms.log import ServiceFilter, DetailedFormatter
 from cms.service.EventService import EventExecutor, EventOperation
 
 logger = logging.getLogger(__name__)
+
+asyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())
 
 def truncate(s, length):
     if len(s) <= length:
@@ -213,15 +216,19 @@ class ThreadHandle:
     def __init__(self, token: str, channel_id: int, storage_path: str):
         ctx = mp.get_context('spawn')
         self.queue = ctx.Queue()
-        self.process = ctx.Process(target=discord_process, kwargs={
-            "queue": self.queue,
-            "token":token,
-            "channel_id":channel_id,
-            "storage_path":storage_path,
-        })
-        logger.info("Starting discord process")
-        self.process.start()
-        logger.info("Thread created")
+        future = discord_process_async(self.queue, token, channel_id, storage_path)
+        self.greenlet = asyncio_gevent.future_to_greenlet(future)
+        self.greenlet.start()
+
+        # self.process = ctx.Process(target=discord_process, kwargs={
+        #     "queue": self.queue,
+        #     "token":token,
+        #     "channel_id":channel_id,
+        #     "storage_path":storage_path,
+        # })
+        # logger.info("Starting discord process")
+        # self.process.start()
+        # logger.info("Thread created")
 
     def send(self, call_type: str, *args, **kwargs):
         logger.info(f"Sending {call_type} discord action")
