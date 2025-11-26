@@ -113,7 +113,6 @@ class QuestionReplyHandler(QuestionActionHandler):
         question.admin = self.current_user
 
         if self.try_commit():
-            self.service.event_service.question_replied(question_id=question.id)
             logger.info("Reply sent to user %s in contest %s for "
                         "question with id %s.",
                         question.participation.user.username,
@@ -132,7 +131,6 @@ class QuestionIgnoreHandler(QuestionActionHandler):
         question.ignored = should_ignore
         question.admin = self.current_user
         if self.try_commit():
-            self.service.event_service.question_ignored(question_id=question.id)
             logger.info("Question '%s' by user %s in contest %s has "
                         "been %s",
                         question.subject,
@@ -157,7 +155,6 @@ class QuestionClaimHandler(QuestionActionHandler):
         else:
             question.admin = None
         if self.try_commit():
-            self.service.event_service.question_claimed(question_id=question.id)
             logger.info("Question '%s' by user %s in contest %s has "
                         "been %s by %s",
                         question.subject,

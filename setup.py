@@ -128,7 +128,6 @@ setup(
         "scripts/cmsAdminWebServer",
         "scripts/cmsProxyService",
         "scripts/cmsRankingWebServer",
-        "scripts/cmsEventService",
         "scripts/cmsInitDB",
         "scripts/cmsDropDB",
     ],
@@ -194,8 +193,5 @@ setup(
             "Rust=cms.grading.languages.rust:Rust",
             "Go=cms.grading.languages.go:Go",
         ],
-        "cms.service.event_handlers": [
-            "Discord=cms.service.event_handlers.discord:DiscordEventExecutor",
-        ]
     },
 )

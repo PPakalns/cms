@@ -128,10 +128,6 @@ class ContestWebServer(WebService):
             ServiceCoord("ProxyService", 0),
             must_be_present=ranking_enabled)
 
-        self.event_service = self.connect_to(
-            ServiceCoord("EventService", 0),
-            must_be_present=False)
-
     def add_notification(
         self, username: str, timestamp: datetime, subject: str, text: str, level: str
     ):

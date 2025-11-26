@@ -64,7 +64,6 @@ ProxyService = [["localhost", 28600]]
 PrometheusExporter = []
 TelegramBot = []
 DiscordBot = []
-EventService = [["localhost", 25130]]
 
 
 [database]
@@ -205,10 +204,3 @@ listen_port = 8811
 #[discord_bot]
 #token = "..."
 #channel_id = 1234
-
-# Service to process different kind of events raised by cms.
-# Register all handlers and their configuration
-#[event_service.event_service_handlers.Discord]
-token = "secret_tokens"
-channel_id = 123123
-storage_path = "/opt/cms/discord/storage"

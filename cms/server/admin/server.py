@@ -93,10 +93,6 @@ class AdminWebServer(WebService):
             ServiceCoord("ProxyService", 0),
             must_be_present=ranking_enabled)
 
-        self.event_service = self.connect_to(
-            ServiceCoord("EventService", 0),
-            must_be_present=False)
-
         self.resource_services = []
         for i in range(get_service_shards("ResourceService")):
             self.resource_services.append(self.connect_to(

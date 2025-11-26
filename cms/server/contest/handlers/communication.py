@@ -83,5 +83,4 @@ class QuestionHandler(ContestHandler):
             self.notify_success(N_("Question received"),
                                 N_("Your question has been received, you "
                                    "will be notified when it is answered."))
-            self.service.event_service.question_new(question_id=question.id)
         self.redirect(self.contest_url("communication"))
