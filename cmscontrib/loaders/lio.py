@@ -282,8 +282,6 @@ class LioTaskLoader(TaskLoader):
                 testlib_path = os.path.join(
                     os.path.dirname(__file__), "lio", "interactive"
                 )
-            elif config.installed:
-                testlib_path = "/usr/local/include/cms"
             else:
                 testlib_path = os.path.join(os.path.dirname(__file__), "polygon")
 
