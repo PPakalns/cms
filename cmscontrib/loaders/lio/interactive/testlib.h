@@ -2486,9 +2486,13 @@ NORETURN void InStream::quit(TResult result, const char* msg)
 
 #ifdef CMS
 
-    if (testlibMode == _interactor && mode == _input && result == _pe)
+    if (testlibMode == _interactor && mode == _input) // && result == _pe)
     {
         tout << "Input file format error: " << msg << std::endl;
+    }
+    if (testlibMode == _interactor && mode == _output) // && result == _pe)
+    {
+        tout << "Participant output verdict: " << msg << std::endl;
     }
 
     inf.close();
