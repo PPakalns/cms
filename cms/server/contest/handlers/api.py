@@ -77,7 +77,7 @@ class ApiLoginHandler(ApiContestHandler):
 
         participation, login_data = validate_login(
             self.sql_session, self.contest, self.timestamp, username, password,
-            ip_address, admin_token=admin_token)
+            ip_address, admin_token=admin_token, agent = self.request.headers.get("User-Agent", "none"))
 
         if participation is None:
             self.json({"error": "Login failed"}, 403)

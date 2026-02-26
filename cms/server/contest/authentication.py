@@ -71,7 +71,8 @@ def validate_login(
     username: str,
     password: str,
     ip_address: AnyIPAddress,
-    admin_token: str = ""
+    admin_token: str = "",
+    agent: str = "none"
 ) -> tuple[Participation | None, bytes | None]:
     """Authenticate a user logging in, with username and password.
 
@@ -161,8 +162,8 @@ def validate_login(
         return None, None
 
     logger.info("Successful login attempt from IP address %s, as user %r, on "
-                "contest %s, at %s", ip_address, username, contest.name,
-                timestamp)
+                "contest %s, at %s, agent %s", ip_address, username, contest.name,
+                timestamp, agent)
 
     # If hashing is used, the cookie stores the hashed password so that
     # the expensive bcrypt call doesn't need to be done at every request.
@@ -182,6 +183,7 @@ def authenticate_request(
     cookie: bytes | None,
     authorization_header: bytes | None,
     ip_address: AnyIPAddress,
+    agent: str = "none",
 ) -> tuple[Participation | None, bytes | None, bool]:
     """Authenticate a user returning to the site, with a cookie.
 
@@ -242,7 +244,10 @@ def authenticate_request(
         participation, cookie, impersonated = (
             _authenticate_request_from_cookie_or_authorization_header(
                 sql_session, contest, timestamp,
-                authorization_header if authorization_header is not None else cookie))
+                authorization_header if authorization_header is not None else cookie,
+                agent = agent
+            )
+        )
 
     if participation is None:
         return None, None, False
@@ -330,7 +335,7 @@ def _authenticate_request_by_ip_address(
 
 
 def _authenticate_request_from_cookie_or_authorization_header(
-    sql_session: Session, contest: Contest, timestamp: datetime, cookie: bytes | None
+    sql_session: Session, contest: Contest, timestamp: datetime, cookie: bytes | None, agent: str = "none"
 ) -> tuple[Participation | None, bytes | None, bool]:
     """Return the current participation based on the cookie.
 
@@ -409,8 +414,8 @@ def _authenticate_request_from_cookie_or_authorization_header(
             return None, None, False
 
         logger.info("Successful cookie authentication as user %r, on contest %s, "
-                    "returning from %s, at %s", username, contest.name, last_update,
-                    timestamp)
+                    "returning from %s, at %s, agent %s", username, contest.name, last_update,
+                    timestamp, agent)
 
     # We store the hashed password (if hashing is used) so that the
     # expensive bcrypt hashing doesn't need to be done at every request.

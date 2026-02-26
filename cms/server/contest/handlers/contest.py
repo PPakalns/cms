@@ -178,7 +178,9 @@ class ContestHandler(BaseHandler):
             self.sql_session, self.contest,
             self.timestamp, cookie,
             authorization_header,
-            ip_address)
+            ip_address,
+            agent = self.request.headers.get("User-Agent", "none")
+        )
 
         if cookie is None:
             self.clear_cookie(cookie_name)

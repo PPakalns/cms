@@ -237,7 +237,7 @@ class LoginHandler(ContestHandler):
 
         participation, cookie = validate_login(
             self.sql_session, self.contest, self.timestamp, username, password,
-            ip_address)
+            ip_address, agent = self.request.headers.get("User-Agent", "none"))
 
         cookie_name = self.contest.name + "_login"
         if cookie is None:
