@@ -93,6 +93,7 @@ from .task import \
     AttachmentHandler, \
     TaskListHandler, \
     RemoveTaskHandler
+from .timing import TimingRosterHandler
 from .user import \
     AddUserHandler, \
     UserHandler, \
@@ -121,6 +122,8 @@ HANDLERS = [
     (r"/notifications", NotificationsHandler),
     (r"/file/([a-f0-9]+)/([a-zA-Z0-9_.-]+)", FileFromDigestHandler),
     (r"/render_markdown", MarkdownRenderHandler),
+    # Server-to-server timing roster; bearer token, read-only.
+    (r"/timing/roster", TimingRosterHandler),
 
     # Contest
 

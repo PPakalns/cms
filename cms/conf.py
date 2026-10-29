@@ -140,6 +140,10 @@ class AWSConfig:
     cookie_duration: int = 10 * 60 * 60  # 10 hours
     num_proxies_used: int = 0
 
+    # Bearer token for the read-only timing roster used by the evidence API.
+    # Keep it in cms.toml (mode 600); an empty value disables the endpoint.
+    timing_token: str | None = None
+
 
 @dataclass()
 class ProxyServiceConfig:
